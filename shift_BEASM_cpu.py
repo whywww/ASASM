@@ -173,25 +173,27 @@ class shift_BEASM2d:
         else:
             lim = R * N/2 * pitch
 
-            fx_emax = min(1 / wvls / ((z / (x0 + lim))**2 + 1), fmax_fft)
-            fx_emin = min(1 / wvls / ((z / (x0 + lim))**2 + 1), fmax_fft)
-            fy_emax = min(1 / wvls / ((z / (y0 + lim))**2 + 1), fmax_fft)
-            fy_emin = min(1 / wvls / ((z / (y0 + lim))**2 + 1), fmax_fft)
+            fx_emax = min(1 / wvls / np.sqrt((z / (x0 + lim))**2 + 1), fmax_fft)
+            # fx_emin = min(1 / wvls / ((z / (x0 + lim))**2 + 1), fmax_fft)
+            fy_emax = min(1 / wvls / np.sqrt((z / (y0 + lim))**2 + 1), fmax_fft)
+            # fy_emin = min(1 / wvls / ((z / (y0 + lim))**2 + 1), fmax_fft)
    
-            fRx = fx_emax if x0 > -lim else -fx_emax
-            fLx = fx_emin if x0 >= lim else -fx_emin
-            fRy = fy_emax if y0 > -lim else -fy_emax
-            fLy = fy_emin if y0 >= lim else -fy_emin
+            # fRx = fx_emax if x0 > -lim else -fx_emax
+            # fLx = fx_emin if x0 >= lim else -fx_emin
+            # fRy = fy_emax if y0 > -lim else -fy_emax
+            # fLy = fy_emin if y0 >= lim else -fy_emin
 
-            dfx = (fRx - fLx) / N
-            dfy = (fRy - fLy) / N
-            fxn = np.linspace(fLx, fRx - dfx, N)
-            fyn = np.linspace(fLy, fRy - dfy, N)
-            fxx, fyy = np.meshgrid(fxn, fyn)
-            fxn, fyn = fxx.flatten(), fyy.flatten()
+            # dfx = (fRx - fLx) / N
+            # dfy = (fRy - fLy) / N
+            # fxn = np.linspace(fLx, fRx - dfx, N)
+            # fyn = np.linspace(fLy, fRy - dfy, N)
+            # fxx, fyy = np.meshgrid(fxn, fyn)
+            # fxn, fyn = fxx.flatten(), fyy.flatten()
+
+            fxn = self.fx / max(abs(self.fx)) * fx_emax
+            fyn = self.fy / max(abs(self.fy)) * fy_emax
 
         self.H = np.exp(1j * k * (wvls * fxn * x0 + wvls * fyn * y0 + z * np.sqrt(1 - (fxn * wvls)**2 - (fyn * wvls)**2)))
-        # self.H = np.exp(1j * k * (z * np.sqrt(1 - (fxn * wvls)**2 - (fyn * wvls)**2)))
         self.fx = fxn * K1
         self.fy = fyn * K2
 
@@ -211,7 +213,5 @@ class shift_BEASM2d:
         t_3 = finufft.nufft2d3(self.x / np.max(np.abs(self.x)) * np.pi, self.y / np.max(np.abs(self.y)) * np.pi, self.H * t_asmNUFT, self.fx, self.fy, isign=-iflag, eps=eps).reshape(shape)
 
         t_3 = t_3 / np.max(np.abs(t_3))
-
-        # np.abs(t_asmNUFT.reshape(shape))
 
         return t_3

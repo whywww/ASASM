@@ -7,7 +7,7 @@ import configparser
 from collections import namedtuple
 import matplotlib.pyplot as plt
 
-gpus = '3'
+gpus = ''
 os.environ["CUDA_VISIBLE_DEVICES"] = gpus  # do not move
 
 import torch
