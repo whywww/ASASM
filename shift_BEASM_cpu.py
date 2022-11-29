@@ -126,7 +126,6 @@ class BEASM2d():
     
 # TODO:
 # 1. torch+cuda implementation
-# 2. shift-BEASM 2d
 # 3. test other parameters
 
 
