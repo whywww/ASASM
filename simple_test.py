@@ -50,7 +50,7 @@ def get_lens_phase_shift(f, ap_coords):
 
 
 # parameters
-n = 1024  # number of source points
+n = 100  # number of source points
 r = int(0.8/1.024 * n) // 2  # radius of aperture
 pad = 2
 N = n * pad
@@ -62,33 +62,57 @@ l = N * pitch
 lam = 500e-9
 k = 2 * np.pi / lam
 
-theta = 5 / 180 * np.pi  # incident angle
+theta = 20  # incident angle
 zo = 1.7  # point source distance
-xo, yo = -np.tan(theta) * zo, 0  # object offset
-xs, ys = np.tan(theta) * z, 0  # image offset
+x0, y0 = -np.tan(theta / 180 * np.pi) * zo, 0  # object offset
+s0, t0 = np.tan(theta / 180 * np.pi) * z, 0  # image offset
 
 f = 25e-3   # focal
 
 # the source points
 x = np.linspace(-l / 2, l / 2, N)
 y = np.linspace(-l / 2, l / 2, N)
-xx, yy = np.meshgrid(x, y)
+xx, yy = np.meshgrid(x, y, indexing='ij')
+
+# the dest points
+s = np.linspace(-l / 2 + s0, l / 2 + s0, N)
+t = np.linspace(-l / 2 + t0, l / 2 + t0, N)
 
 # create input field
 # the aperture
 c = np.linspace(-N//2, N//2, N)
-uu, vv = np.meshgrid(c, c)
+uu, vv = np.meshgrid(c, c, indexing='ij')
 pupil = np.where(uu**2+vv**2<=r**2, 1, 0)
 
 # E1 = pupil * get_plane_wave((xo, yo), np.stack((xx, yy), axis=0), zo)
-E1 = pupil #* get_exact_spherical_wave_np((xo, yo), np.stack((xx, yy), axis=0), zo) * get_lens_phase_shift(f, np.stack((xx, yy), axis=0))
+E1 = pupil * get_exact_spherical_wave_np((x0, y0), np.stack((xx, yy), axis=0), zo) * get_lens_phase_shift(f, np.stack((xx, yy), axis=0))
 # E1 = get_exact_spherical_wave_np((xo, yo), np.stack((xx, yy), axis=0), zo)
 
+print('-------------- Propagating with RS integral --------------')
 from RS import RSDiffraction_INT, RSDiffraction_GPU
 # prop = RSDiffraction_INT()
-# U0 = prop(E1, z, x, y, x, y, lam)
+# U0 = prop(E1, z, x, y, s, t, lam)
 prop = RSDiffraction_GPU()
-U0 = prop(E1, z, x, y, x, y, lam, 'cuda:1')
-plt.title(fr'RS: r={r*pitch:.2e}, z={z:.1e}, $\theta$={theta:.2e}, zo={zo}')
+U0 = prop(E1, z, x, y, s, t, lam, 'cuda:1')
+plt.title(fr'RS: r={r*pitch:.2e}, z={z:.1e}, $\theta$={theta}$^\circ$, zo={zo}')
 plt.imshow(np.abs(U0), cmap='gray')
-plt.savefig('RS.png')
+plt.savefig(f'results/RS{n}-{theta}.png')
+
+
+print('-------------- Propagating with shift BEASM --------------')
+from shift_BEASM_cpu import shift_BEASM2d
+prop = shift_BEASM2d(s0, t0, z, x, y, lam)
+U1 = prop(E1)
+plt.title(fr'BEASM: r={r*pitch:.2e}, z={z:.1e}, $\theta$={theta}$^\circ$, zo={zo}')
+plt.imshow(np.abs(U1), cmap='gray')
+plt.savefig(f'results/BEASM{n}-{theta}.png')
+
+
+print('----------------- Propagating with ASMMM -----------------')
+from svASM import AngularSpectrumMethodMM
+device = 'cuda:3' # 'cpu' #
+prop = AngularSpectrumMethodMM((x0, y0, zo), z, x, y, s, t, lam, device)
+U2 = prop(E1)
+plt.title(fr'MM: r={r*pitch:.2e}, z={z:.1e}, $\theta$={theta}$^\circ$, zo={zo}')
+plt.imshow(np.abs(U2)[0], cmap='gray')
+plt.savefig(f'results/MM{n}-{theta}.png')

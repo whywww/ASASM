@@ -74,14 +74,14 @@ class BEASM2d():
         l = N * pitch
 
         # the source & target points (same window)
-        xx, yy = np.meshgrid(xvec, yvec)
-        self.x = xx.flatten()
-        self.y = yy.flatten()
+        xx, yy = np.meshgrid(xvec, yvec, indexing='ij')
+        self.x = xx.flatten() / np.max(np.abs(xx)) * np.pi
+        self.y = yy.flatten() / np.max(np.abs(yy)) * np.pi
 
         # the frequency points
         fx = np.linspace(-1 / 2 / pitch, 1 / 2 / pitch - 1 / l, N, dtype=dtype)
         fy = np.linspace(-1 / 2 / pitch, 1 / 2 / pitch - 1 / l, N, dtype=dtype)
-        fxx, fyy = np.meshgrid(fx, fy)
+        fxx, fyy = np.meshgrid(fx, fy, indexing='ij')
         self.fx = fxx.flatten()
         self.fy = fyy.flatten()
 
@@ -115,11 +115,10 @@ class BEASM2d():
 
         shape = E0.shape
         E0 = E0.flatten()
-        t_asmNUFT = finufft.nufft2d3(self.x / np.max(np.abs(self.x)) * np.pi, self.y / np.max(np.abs(self.y)) * np.pi, E0, self.fx, self.fy, isign=iflag, eps=eps)
-        t_3 = finufft.nufft2d3(self.x / np.max(np.abs(self.x)) * np.pi, self.y / np.max(np.abs(self.y)) * np.pi, self.H * t_asmNUFT, self.fx, self.fy, isign=-iflag, eps=eps).reshape(shape)
+        t_asmNUFT = finufft.nufft2d3(self.x, self.y, E0, self.fx, self.fy, isign=iflag, eps=eps)
+        t_3 = finufft.nufft2d3(self.x, self.y, self.H * t_asmNUFT, self.fx, self.fy, isign=-iflag, eps=eps).reshape(shape)
 
         t_3 = t_3 / np.max(np.abs(t_3))
-        # t_3 = t_3[N1//2 - N1//4 + 1 : N1 // 2 + N1 // 4 + 1, N2//2 - N2//4 + 1 : N2 // 2 + N2 // 4 + 1]
 
         return t_3
 
@@ -130,7 +129,7 @@ class BEASM2d():
 
 
 class shift_BEASM2d:
-    def __init__(self, x0, y0, z, xvec, yvec, wvls) -> None:
+    def __init__(self, s0, t0, z, xvec, yvec, wvls) -> None:
         '''
         :param x0, y0: destination window shift 
         :param xvec, yvec: source and destination window grid
@@ -149,15 +148,15 @@ class shift_BEASM2d:
         l = N * pitch
 
         # the source & target points (same window)
-        xx, yy = np.meshgrid(xvec, yvec)
-        self.x = xx.flatten()
-        self.y = yy.flatten()
+        xx, yy = np.meshgrid(xvec, yvec, indexing='ij')
+        self.x = xx.flatten() / np.max(np.abs(xx)) * np.pi
+        self.y = yy.flatten() / np.max(np.abs(yy)) * np.pi
 
         # the frequency points
         fmax_fft = 1 / 2 / pitch
         fx = np.linspace(-fmax_fft, fmax_fft - 1 / l, N, dtype=dtype)
         fy = np.linspace(-fmax_fft, fmax_fft - 1 / l, N, dtype=dtype)
-        fxx, fyy = np.meshgrid(fx, fy)
+        fxx, fyy = np.meshgrid(fx, fy, indexing='ij')
         self.fx = fxx.flatten()
         self.fy = fyy.flatten()
 
@@ -172,10 +171,10 @@ class shift_BEASM2d:
         else:
             lim = R * N/2 * pitch
 
-            fx_emax = min(1 / wvls / np.sqrt((z / (x0 + lim))**2 + 1), fmax_fft)
-            # fx_emin = min(1 / wvls / ((z / (x0 + lim))**2 + 1), fmax_fft)
-            fy_emax = min(1 / wvls / np.sqrt((z / (y0 + lim))**2 + 1), fmax_fft)
-            # fy_emin = min(1 / wvls / ((z / (y0 + lim))**2 + 1), fmax_fft)
+            fx_emax = min(1 / wvls / np.sqrt((z / (s0 + lim))**2 + 1), fmax_fft)
+            # fx_emin = min(1 / wvls / np.sqrt((z / (x0 + lim))**2 + 1), fmax_fft)
+            fy_emax = min(1 / wvls / np.sqrt((z / (t0 + lim))**2 + 1), fmax_fft)
+            # fy_emin = min(1 / wvls / np.sqrt((z / (y0 + lim))**2 + 1), fmax_fft)
    
             # fRx = fx_emax if x0 > -lim else -fx_emax
             # fLx = fx_emin if x0 >= lim else -fx_emin
@@ -186,13 +185,13 @@ class shift_BEASM2d:
             # dfy = (fRy - fLy) / N
             # fxn = np.linspace(fLx, fRx - dfx, N)
             # fyn = np.linspace(fLy, fRy - dfy, N)
-            # fxx, fyy = np.meshgrid(fxn, fyn)
+            # fxx, fyy = np.meshgrid(fxn, fyn, indexing='ij')
             # fxn, fyn = fxx.flatten(), fyy.flatten()
 
             fxn = self.fx / max(abs(self.fx)) * fx_emax
             fyn = self.fy / max(abs(self.fy)) * fy_emax
 
-        self.H = np.exp(1j * k * (wvls * fxn * x0 + wvls * fyn * y0 + z * np.sqrt(1 - (fxn * wvls)**2 - (fyn * wvls)**2)))
+        self.H = np.exp(1j * k * (wvls * fxn * s0 + wvls * fyn * t0 + z * np.sqrt(1 - (fxn * wvls)**2 - (fyn * wvls)**2))) #
         self.fx = fxn * K1
         self.fy = fyn * K2
 
@@ -208,8 +207,8 @@ class shift_BEASM2d:
 
         shape = E0.shape
         E0 = E0.flatten()
-        t_asmNUFT = finufft.nufft2d3(self.x / np.max(np.abs(self.x)) * np.pi, self.y / np.max(np.abs(self.y)) * np.pi, E0, self.fx, self.fy, isign=iflag, eps=eps)
-        t_3 = finufft.nufft2d3(self.x / np.max(np.abs(self.x)) * np.pi, self.y / np.max(np.abs(self.y)) * np.pi, self.H * t_asmNUFT, self.fx, self.fy, isign=-iflag, eps=eps).reshape(shape)
+        t_asmNUFT = finufft.nufft2d3(self.x, self.y, E0, self.fx, self.fy, isign=iflag, eps=eps)
+        t_3 = finufft.nufft2d3(self.x, self.y, self.H * t_asmNUFT, self.fx, self.fy, isign=-iflag, eps=eps).reshape(shape)
 
         t_3 = t_3 / np.max(np.abs(t_3))
 

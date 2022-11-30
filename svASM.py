@@ -1,11 +1,9 @@
 import torch
-import torch.fft as fft
 import math
-from warnings import warn
-import numpy as np
 
 
 def mdft(in_matrix, x, y, fx, fy):
+    'x,fx: vertical; y,fy: horizontal'
     x = x.unsqueeze(-1)
     y = y.unsqueeze(-2)
     fx = fx.unsqueeze(-2)
@@ -56,7 +54,7 @@ def midft(in_matrix, x, y, fx, fy):
 
 
 class AngularSpectrumMethodMM():
-    def __init__(self, o_loc, z, xvec, yvec, svec, tvec, wavelengths, device, offst):
+    def __init__(self, o_loc, z, xvec, yvec, svec, tvec, wavelengths, device):
         '''
         :param xvec, yvec: vectors of source coordinates
         :param wavelengths: wavelengths
@@ -84,9 +82,9 @@ class AngularSpectrumMethodMM():
         Lfy = 2 * fmax_fft
 
         # off-axis spectrum offset
-        xo, yo, zo = o_loc
-        offx = -xo / torch.sqrt(xo**2 + yo**2 + zo**2) / maxLambda
-        offy = -yo / torch.sqrt(xo**2 + yo**2 + zo**2) / maxLambda
+        x0, y0, zo = o_loc
+        offx = -x0 / torch.sqrt(x0**2 + y0**2 + zo**2) / maxLambda
+        offy = -y0 / torch.sqrt(x0**2 + y0**2 + zo**2) / maxLambda
         # offx = offy = 0
 
         # maximum sampling interval limited by TF
@@ -117,11 +115,11 @@ class AngularSpectrumMethodMM():
         self.fy = torch.linspace(-Lfy / 2 + offy, Lfy / 2 - dfy2 + offy, LRfy, device=device, dtype=dtype)
         print(f'max freq: {self.fx.max():.2f}, interval: {self.fx[-1]-self.fx[-2]:.2f}, length: {LRfx,LRfy}')
 
-        fxx, fyy = torch.meshgrid(self.fx, self.fy, indexing='xy')
-        # self.H = torch.exp(1j * k * z * torch.sqrt(1 - wavelengths ** 2 * (fxx ** 2 + fyy ** 2)))
+        fxx, fyy = torch.meshgrid(self.fx, self.fy, indexing='ij')
+        self.H = torch.exp(1j * k * z * torch.sqrt(1 - wavelengths ** 2 * (fxx ** 2 + fyy ** 2)))
         
-        x0, y0 = offst
-        self.H = torch.exp(1j * k * (wavelengths * fxx * x0 + wavelengths * fyy * y0 + z * torch.sqrt(1 - wavelengths ** 2 * (fxx ** 2 + fyy ** 2))))
+        # s0, t0 = offst
+        # self.H = torch.exp(1j * k * (wavelengths * fxx * s0 + wavelengths * fyy * t0 + z * torch.sqrt(1 - wavelengths ** 2 * (fxx ** 2 + fyy ** 2))))
 
 
 
@@ -139,7 +137,7 @@ class AngularSpectrumMethodMM():
 
         fx = self.fx.unsqueeze(0)
         fy = self.fy.unsqueeze(0)
-        Fu = mdft(E0, self.x, self.y, fx, fy)
-        Eout = midft(Fu * self.H, self.s, self.t, fx, fy)
+        Fu = mdft(E0, self.y, self.x, fy, fx)
+        Eout = midft(Fu * self.H, self.t, self.s, fy, fx)
 
-        return Eout
+        return Eout.cpu().numpy()
