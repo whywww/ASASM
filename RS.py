@@ -47,41 +47,45 @@ import torch
 import math
 
 class RSDiffraction_GPU():
-    def __init__(self) -> None:
+    def __init__(self, z, xvec, yvec, svec, tvec, wavelengths, device) -> None:
         '''
         x,s are vertical. y,t are horizontal.
         '''
-        pass
 
-    def __call__(self, E0, z, xvec, yvec, svec, tvec, wavelengths, device):
-        
-        k = 2 * torch.pi / wavelengths
-        E0 = torch.tensor(E0, dtype=torch.complex128, device=device)
+        self.device = device
+        self.k = 2 * torch.pi / wavelengths
+        self.z = z
+
         xvec, yvec = torch.tensor(xvec), torch.tensor(yvec)
         svec, tvec = torch.tensor(svec), torch.tensor(tvec)
         xx, yy = torch.meshgrid(xvec, yvec, indexing='ij')
         ss, tt = torch.meshgrid(svec, tvec, indexing='ij')
-        ss, tt = ss.to(device), tt.to(device)
-        xx_, yy_ = xx[...,None,None].to(device), yy[...,None,None].to(device)
-        block_sz = 8  # depends on your memory
+        self.ss, self.tt = ss.to(device), tt.to(device)
+        self.xx_, self.yy_ = xx[...,None,None].to(device), yy[...,None,None].to(device)
+        
+        self.block_sz = 8  # depends on your memory
 
-        LX, LY = len(xvec), len(yvec)
-        LS, LT = len(svec), len(tvec)
+
+    def __call__(self, E0):
+        
+        E0 = torch.tensor(E0, dtype=torch.complex128, device=self.device)
+
+        LX, LY = E0.shape[-2:]
+        LS, LT = self.ss.shape
 
         Eout = []
-        for bs in tqdm(range(math.ceil(LS / block_sz)), desc='svec', position=0):
+        for bs in tqdm(range(math.ceil(LS / self.block_sz)), desc='svec', position=0):
             Erow = []
-            for bt in tqdm(range(math.ceil(LT / block_sz)), desc='tvec', position=1, leave=False):
-                ss_ = ss[bs*block_sz : (bs+1)*block_sz, bt*block_sz : (bt+1)*block_sz]
-                tt_ = tt[bs*block_sz : (bs+1)*block_sz, bt*block_sz : (bt+1)*block_sz]
+            for bt in tqdm(range(math.ceil(LT / self.block_sz)), desc='tvec', position=1, leave=False):
+                ss_ = self.ss[bs*self.block_sz : (bs+1)*self.block_sz, bt*self.block_sz : (bt+1)*self.block_sz]
+                tt_ = self.tt[bs*self.block_sz : (bs+1)*self.block_sz, bt*self.block_sz : (bt+1)*self.block_sz]
                 ss_xy = ss_.expand(LX, LY, *ss_.shape)
                 tt_xy = tt_.expand(LX, LY, *tt_.shape)
-                r = torch.sqrt((ss_xy - xx_)**2 + (tt_xy - yy_)**2 + z**2)
-                h = -1 / (2 * torch.pi) * (1j * k - 1 / r) * torch.exp(1j * k * r) * z / r**2
-                block_sum = torch.einsum('ij, ijst', E0, h) # abs(torch.hstack(Erow))
+                r = torch.sqrt((ss_xy - self.xx_)**2 + (tt_xy - self.yy_)**2 + self.z**2)
+                h = -1 / (2 * torch.pi) * (1j * self.k - 1 / r) * torch.exp(1j * self.k * r) * self.z / r**2
+                block_sum = torch.einsum('ij, ijst', E0, h)
                 Erow.append(block_sum)
             Eout.append(torch.hstack(Erow))
         Eout = torch.vstack(Eout)
 
-        print(Eout.shape)
         return Eout.cpu().numpy()

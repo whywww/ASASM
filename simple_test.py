@@ -1,9 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import finufft
-import numpy.fft as fft
-from scipy import integrate
-import math
 
 
 def get_exact_spherical_wave_np(src_point, dest_plane, distance):
@@ -89,30 +85,38 @@ E1 = pupil * get_exact_spherical_wave_np((x0, y0), np.stack((xx, yy), axis=0), z
 # E1 = get_exact_spherical_wave_np((xo, yo), np.stack((xx, yy), axis=0), zo)
 
 print('-------------- Propagating with RS integral --------------')
-from RS import RSDiffraction_INT, RSDiffraction_GPU
+# from RS import RSDiffraction_INT
 # prop = RSDiffraction_INT()
 # U0 = prop(E1, z, x, y, s, t, lam)
-prop = RSDiffraction_GPU()
-U0 = prop(E1, z, x, y, s, t, lam, 'cuda:1')
+from RS import RSDiffraction_GPU
+prop = RSDiffraction_GPU(z, x, y, s, t, lam, 'cuda:1')
+U0 = prop(E1)
+plt.figure(figsize=(10,10))
+plt.tight_layout()
 plt.title(fr'RS: r={r*pitch:.2e}, z={z:.1e}, $\theta$={theta}$^\circ$, zo={zo}')
 plt.imshow(np.abs(U0), cmap='gray')
 plt.savefig(f'results/RS{n}-{theta}.png')
-
+plt.close()
 
 print('-------------- Propagating with shift BEASM --------------')
 from shift_BEASM_cpu import shift_BEASM2d
 prop = shift_BEASM2d(s0, t0, z, x, y, lam)
 U1 = prop(E1)
+plt.figure(figsize=(10,10))
+plt.tight_layout()
 plt.title(fr'BEASM: r={r*pitch:.2e}, z={z:.1e}, $\theta$={theta}$^\circ$, zo={zo}')
 plt.imshow(np.abs(U1), cmap='gray')
 plt.savefig(f'results/BEASM{n}-{theta}.png')
-
+plt.close()
 
 print('----------------- Propagating with ASMMM -----------------')
 from svASM import AngularSpectrumMethodMM
 device = 'cuda:3' # 'cpu' #
 prop = AngularSpectrumMethodMM((x0, y0, zo), z, x, y, s, t, lam, device)
 U2 = prop(E1)
+plt.figure(figsize=(10,10))
+plt.tight_layout()
 plt.title(fr'MM: r={r*pitch:.2e}, z={z:.1e}, $\theta$={theta}$^\circ$, zo={zo}')
 plt.imshow(np.abs(U2)[0], cmap='gray')
 plt.savefig(f'results/MM{n}-{theta}.png')
+plt.close()
