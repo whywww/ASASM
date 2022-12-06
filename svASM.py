@@ -63,6 +63,8 @@ class AngularSpectrumMethodMM():
         super(AngularSpectrumMethodMM, self).__init__()
 
         dtype = torch.double
+        complex_dtype = torch.complex128
+
         self.device = device
         self.x, self.y = torch.as_tensor(xvec, device=device), torch.as_tensor(yvec, device=device)
         self.s, self.t = torch.as_tensor(svec, device=device), torch.as_tensor(tvec, device=device)
@@ -85,13 +87,15 @@ class AngularSpectrumMethodMM():
         x0, y0, zo = o_loc
         offx = -x0 / torch.sqrt(x0**2 + y0**2 + zo**2) / maxLambda
         offy = -y0 / torch.sqrt(x0**2 + y0**2 + zo**2) / maxLambda
+        # offx = torch.remainder(offx, Lfx)
+        # offy = torch.remainder(offy, Lfy)
         # offx = offy = 0
 
         # maximum sampling interval limited by TF
-        # dfMax1 = torch.sqrt(1 - (maxLambda * fmax_fft) ** 2) / (2*maxLambda * maxZ * fmax_fft)
-        fmin = -maxLambda * z * (fmax_fft + offx) / torch.sqrt(1 - (maxLambda * (fmax_fft + offx))**2)
-        fmax = -maxLambda * z * (-fmax_fft + offy) / torch.sqrt(1 - (maxLambda * (-fmax_fft + offy))**2)
-        dfMax1 = 1 / (fmax - fmin)
+        dfMax1 = torch.sqrt(1 - (maxLambda * fmax_fft) ** 2) / (2 * maxLambda * z * fmax_fft)
+        # fmin = -maxLambda * z * (fmax_fft + offx) / torch.sqrt(1 - (maxLambda * (fmax_fft + offx))**2)
+        # fmax = -maxLambda * z * (-fmax_fft + offy) / torch.sqrt(1 - (maxLambda * (-fmax_fft + offy))**2)
+        # dfMax1 = 1 / abs(fmax - fmin)
 
         # maximum sampling interval limited by observation plane
         Lx = svec[-1] - svec[0]
@@ -111,16 +115,22 @@ class AngularSpectrumMethodMM():
         dfy2 = Lfy / LRfy
 
         # spatial frequency coordinate
-        self.fx = torch.linspace(-Lfx / 2 + offx, Lfx / 2 - dfx2 + offx, LRfx, device=device, dtype=dtype)
-        self.fy = torch.linspace(-Lfy / 2 + offy, Lfy / 2 - dfy2 + offy, LRfy, device=device, dtype=dtype)
-        print(f'max freq: {self.fx.max():.2f}, interval: {self.fx[-1]-self.fx[-2]:.2f}, length: {LRfx,LRfy}')
+        fx = torch.linspace(-Lfx / 2, Lfx / 2 - dfx2, LRfx, device=device, dtype=complex_dtype)
+        fy = torch.linspace(-Lfy / 2, Lfy / 2 - dfy2, LRfy, device=device, dtype=complex_dtype)
+        self.fx, self.fy = fx + offx, fy + offy
 
         fxx, fyy = torch.meshgrid(self.fx, self.fy, indexing='ij')
-        self.H = torch.exp(1j * k * z * torch.sqrt(1 - wavelengths ** 2 * (fxx ** 2 + fyy ** 2)))
+        self.H = torch.exp(1j * k * z * torch.sqrt(1 - (wavelengths * fxx) ** 2 - (wavelengths * fyy) ** 2))
         
-        # s0, t0 = offst
+        # print(f'max freq: {self.fx.max():.2f}, interval: {self.fx[-1]-self.fx[-2]:.2f}, length: {LRfx,LRfy}')
+
+        # s0, t0 = x0 / zo * z, y0 / zo * z
         # self.H = torch.exp(1j * k * (wavelengths * fxx * s0 + wavelengths * fyy * t0 + z * torch.sqrt(1 - wavelengths ** 2 * (fxx ** 2 + fyy ** 2))))
 
+        self.x = self.x.to(dtype=complex_dtype)
+        self.y = self.y.to(dtype=complex_dtype)
+        self.s = self.s.to(dtype=complex_dtype)
+        self.t = self.t.to(dtype=complex_dtype)
 
 
     def __call__(self, E0):
@@ -139,5 +149,8 @@ class AngularSpectrumMethodMM():
         fy = self.fy.unsqueeze(0)
         Fu = mdft(E0, self.y, self.x, fy, fx)
         Eout = midft(Fu * self.H, self.t, self.s, fy, fx)
+
+        # abs(Fu)/torch.max(abs(Fu))
+        # abs(Eout) # torch.angle(self.H)
 
         return Eout.cpu().numpy()
