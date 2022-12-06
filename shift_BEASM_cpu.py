@@ -163,16 +163,22 @@ class shift_BEASM2d:
         fy_limP = 1 / wvls / np.sqrt((z / (t0 + Ly))**2 + 1)
         fy_limN = 1 / wvls / np.sqrt((z / (t0 - Ly))**2 + 1)
 
-        # the paper said to clamp these values within fftmax, 
-        # but then it becomes 0-bandwidth...
-
         fx_ue = fx_limP if s0 > -Lx else -fx_limP
         fx_le = fx_limN if s0 >= Lx else -fx_limN
         fy_ue = fy_limP if t0 > -Ly else -fy_limP
         fy_le = fy_limN if t0 >= Ly else -fy_limN
 
+        fx_ue = np.clip(fx_ue, -fftmax, fftmax)
+        fx_le = np.clip(fx_le, -fftmax, fftmax)
+        fy_ue = np.clip(fy_ue, -fftmax, fftmax)
+        fy_le = np.clip(fy_le, -fftmax, fftmax)
+
         dfx = (fx_ue - fx_le) / N
         dfy = (fy_ue - fy_le) / N
+
+        if dfx <= 0 or dfy <= 0:
+            import warnings
+            warnings.warn("The oblique angle exceeds limit!")
 
         fx = np.linspace(fx_le, fx_ue - dfx, N, dtype=dtype)
         fy = np.linspace(fy_le, fy_ue - dfy, N, dtype=dtype)
@@ -182,6 +188,8 @@ class shift_BEASM2d:
 
         # K1 = N / pad / np.max(np.abs(fx))
         # K2 = N / pad / np.max(np.abs(fy))
+        # K1 = l
+        # K2 = l
         K1 = N / pad / (fftmax - 1/l)  # not sure!!!!
         K2 = N / pad / (fftmax - 1/l)
         
@@ -222,12 +230,12 @@ class shift_BEASM2d:
         self.fy = fyy * K2
 
         fxx, fyy = fxx.astype(np.complex128), fyy.astype(np.complex128)
+        self.H = np.exp(1j * k * (wvls * fxx * s0 + wvls * fyy * t0 + z * np.sqrt(1 - (fxx * wvls)**2 - (fyy * wvls)**2)))
+        # self.H = np.exp(1j * k * z * np.sqrt(1 - (fxx * wvls)**2 - (fyy * wvls)**2))
         # self.H = np.exp(1j * k * (wvls * fxx * s0 + wvls * fyy * t0 + z * np.sqrt(1 - (fxx * wvls)**2 - (fyy * wvls)**2)))
-        self.H = np.exp(1j * k * z * np.sqrt(1 - (fxx * wvls)**2 - (fyy * wvls)**2))
-        # self.H = np.exp(1j * k * (wvls * fxx * s0 + wvls * fyy * t0 + z * np.sqrt(1 - (fxx * wvls)**2 - (fyy * wvls)**2)))
-        # self.H = self.H.flatten()
 
-        print(f'max freq: {self.fx.max():.2f}, interval: {self.fx[-1]-self.fx[-2]:.2f}, length: {N,N}')
+        print(f'fx range: {fx.min():.2f} to {fx.max():.2f}, interval: {dfx:.2f}&{dfy:.2f}, '\
+                f'length: {N,N}, bandwidth: {fx[-1]-fx[0]:.2f}&{fy[-1]-fy[0]:.2f}')
 
 
     def __call__(self, E0):
@@ -245,5 +253,6 @@ class shift_BEASM2d:
         t_3 = t_3 / np.max(np.abs(t_3))
 
         # abs(t_asmNUFT.reshape(shape))
-        # torch.abs(t_3)
+        # np.angle(self.H.reshape(shape))
+        # np.angle(t_3) np.abs(t_3)
         return t_3

@@ -122,7 +122,7 @@ class AngularSpectrumMethodMM():
         fxx, fyy = torch.meshgrid(self.fx, self.fy, indexing='ij')
         self.H = torch.exp(1j * k * z * torch.sqrt(1 - (wavelengths * fxx) ** 2 - (wavelengths * fyy) ** 2))
         
-        # print(f'max freq: {self.fx.max():.2f}, interval: {self.fx[-1]-self.fx[-2]:.2f}, length: {LRfx,LRfy}')
+        print(f'max freq: {torch.abs(self.fx).max():.2f}, interval: {torch.abs(self.fx)[-1]-torch.abs(self.fx)[-2]:.2f}, length: {LRfx,LRfy}, bandwidth: {Lfx, Lfy}')
 
         # s0, t0 = x0 / zo * z, y0 / zo * z
         # self.H = torch.exp(1j * k * (wavelengths * fxx * s0 + wavelengths * fyy * t0 + z * torch.sqrt(1 - wavelengths ** 2 * (fxx ** 2 + fyy ** 2))))
