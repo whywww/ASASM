@@ -177,14 +177,15 @@ class shift_BEASM2d:
         dfy = (fy_ue - fy_le) / N
 
         if dfx <= 0 or dfy <= 0:
-            import warnings
-            warnings.warn("The oblique angle exceeds limit!")
+            s0_lim1 = z * wvls / np.sqrt(4*pitch**2-wvls**2) + Lx
+            s0_lim2 = z * wvls / np.sqrt(4*pitch**2-wvls**2) - Lx
+            s0_lim = max(abs(s0_lim1), abs(s0_lim2))
+            theta_max = np.arctan2(s0_lim, z) * 180 / np.pi
+            raise Exception(f"The oblique angle should not exceed {theta_max:.2f} degrees!")
 
         fx = np.linspace(fx_le, fx_ue - dfx, N, dtype=dtype)
         fy = np.linspace(fy_le, fy_ue - dfy, N, dtype=dtype)
         fxx, fyy = np.meshgrid(fx, fy, indexing='ij')
-        fxx = fxx.flatten()
-        fyy = fyy.flatten()
 
         # K1 = N / pad / np.max(np.abs(fx))
         # K2 = N / pad / np.max(np.abs(fy))
@@ -226,14 +227,15 @@ class shift_BEASM2d:
             # fxn = self.fx / max(abs(self.fx)) * fx_emax
             # fyn = self.fy / max(abs(self.fy)) * fy_emax
 
-        self.fx = fxx * K1
-        self.fy = fyy * K2
+        self.fx = fxx.flatten() * K1
+        self.fy = fyy.flatten() * K2
 
         fxx, fyy = fxx.astype(np.complex128), fyy.astype(np.complex128)
         self.H = np.exp(1j * k * (wvls * fxx * s0 + wvls * fyy * t0 + z * np.sqrt(1 - (fxx * wvls)**2 - (fyy * wvls)**2)))
         # self.H = np.exp(1j * k * z * np.sqrt(1 - (fxx * wvls)**2 - (fyy * wvls)**2))
         # self.H = np.exp(1j * k * (wvls * fxx * s0 + wvls * fyy * t0 + z * np.sqrt(1 - (fxx * wvls)**2 - (fyy * wvls)**2)))
-
+        self.H = self.H.flatten()
+        
         print(f'fx range: {fx.min():.2f} to {fx.max():.2f}, interval: {dfx:.2f}&{dfy:.2f}, '\
                 f'length: {N,N}, bandwidth: {fx[-1]-fx[0]:.2f}&{fy[-1]-fy[0]:.2f}')
 
