@@ -65,8 +65,8 @@ k = 2 * np.pi / lam
 
 theta = 5  # incident angle
 zo = 1.7  # point source distance
-x0, y0 = -np.tan(theta / 180 * np.pi) * zo, 0  # object offset
-s0, t0 = np.tan(theta / 180 * np.pi) * z, 0  # image offset
+x0, y0 = np.tan(theta / 180 * np.pi) * zo, 0  # object offset
+s0, t0 = -np.tan(theta / 180 * np.pi) * z, 0  # image offset
 print(f'aperture diameter = {pitch*N}, offset = {x0}')
 
 f = 25e-3   # focal
@@ -90,22 +90,22 @@ E1 = pupil * get_plane_wave((x0, y0), np.stack((xx, yy), axis=0), zo)
 # E1 = pupil * get_exact_spherical_wave_np((x0, y0), np.stack((xx, yy), axis=0), zo) * get_lens_phase_shift(f, np.stack((xx, yy), axis=0))
 # E1 = get_exact_spherical_wave_np((xo, yo), np.stack((xx, yy), axis=0), zo)
 
-print('-------------- Propagating with RS integral --------------')
-# from RS import RSDiffraction_INT
-# prop = RSDiffraction_INT()
-# U0 = prop(E1, z, x, y, s, t, lam)
-from RS import RSDiffraction_GPU
-prop = RSDiffraction_GPU(z, x, y, s, t, lam, 'cuda:2')
-start = time.time()
-U0 = prop(E1)
-end = time.time()
-print(f'Time elapsed for RS: {end-start:.2f}')
-plt.figure(figsize=(10,10))
-plt.tight_layout()
-plt.title(fr'RS: r={r*pitch:.2e}, z={z:.1e}, $\theta$={theta}$^\circ$, zo={zo}')
-plt.imshow(np.abs(U0), cmap='gray')
-plt.savefig(f'results/RS{n}-{theta}.png')
-plt.close()
+# print('-------------- Propagating with RS integral --------------')
+# # from RS import RSDiffraction_INT
+# # prop = RSDiffraction_INT()
+# # U0 = prop(E1, z, x, y, s, t, lam)
+# from RS import RSDiffraction_GPU
+# prop = RSDiffraction_GPU(z, x, y, s, t, lam, 'cuda:1')
+# start = time.time()
+# U0 = prop(E1)
+# end = time.time()
+# print(f'Time elapsed for RS: {end-start:.2f}')
+# plt.figure(figsize=(10,10))
+# plt.tight_layout()
+# plt.title(fr'RS: r={r*pitch:.2e}, z={z:.1e}, $\theta$={theta}$^\circ$, zo={zo}')
+# plt.imshow(np.abs(U0), cmap='gray')
+# plt.savefig(f'results/RS{n}-{theta}-lensless.png')
+# plt.close()
 
 print('-------------- Propagating with shift BEASM --------------')
 from shift_BEASM_cpu import shift_BEASM2d
@@ -118,20 +118,20 @@ plt.figure(figsize=(10,10))
 plt.tight_layout()
 plt.title(fr'BEASM: r={r*pitch:.2e}, z={z:.1e}, $\theta$={theta}$^\circ$, zo={zo}')
 plt.imshow(np.abs(U1), cmap='gray')
-plt.savefig(f'results/BEASM{n}-{theta}.png')
+plt.savefig(f'results/BEASM{n}-{theta}-lensless.png')
 plt.close()
 
-print('----------------- Propagating with ASMMM -----------------')
-from svASM import AngularSpectrumMethodMM
-device = 'cpu' #'cuda:2' # 
-prop = AngularSpectrumMethodMM((x0, y0, zo), z, x, y, s, t, lam, device)
-start = time.time()
-U2 = prop(E1)
-end = time.time()
-print(f'Time elapsed for ASMMM: {end-start:.2f}')
-plt.figure(figsize=(10,10))
-plt.tight_layout()
-plt.title(fr'MM: r={r*pitch:.2e}, z={z:.1e}, $\theta$={theta}$^\circ$, zo={zo}')
-plt.imshow(np.abs(U2)[0], cmap='gray')
-plt.savefig(f'results/MM{n}-{theta}.png')
-plt.close()
+# print('----------------- Propagating with ASMMM -----------------')
+# from svASM import AngularSpectrumMethodMM
+# device = 'cpu' #'cuda:2' # 
+# prop = AngularSpectrumMethodMM((x0, y0, zo), z, x, y, s, t, lam, device)
+# start = time.time()
+# U2 = prop(E1)
+# end = time.time()
+# print(f'Time elapsed for ASMMM: {end-start:.2f}')
+# plt.figure(figsize=(10,10))
+# plt.tight_layout()
+# plt.title(fr'MM: r={r*pitch:.2e}, z={z:.1e}, $\theta$={theta}$^\circ$, zo={zo}')
+# plt.imshow(np.abs(U2)[0], cmap='gray')
+# plt.savefig(f'results/MM{n}-{theta}-lensless.png')
+# plt.close()

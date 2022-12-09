@@ -187,12 +187,12 @@ class shift_BEASM2d:
         fy = np.linspace(fy_le, fy_ue - dfy, N, dtype=dtype)
         fxx, fyy = np.meshgrid(fx, fy, indexing='ij')
 
+        K1 = N / (fx_ue - fx_le - dfx)
+        K2 = N / (fy_ue - fy_le - dfy)
         # K1 = N / pad / np.max(np.abs(fx))
         # K2 = N / pad / np.max(np.abs(fy))
-        # K1 = l
-        # K2 = l
-        K1 = N / pad / (fftmax - 1/l)  # not sure!!!!
-        K2 = N / pad / (fftmax - 1/l)
+        # K1 = N / pad / (fftmax - 1/l)  # not sure!!!!
+        # K2 = N / pad / (fftmax - 1/l)
         
         # zc = N * pitch**2 / wvls
         # if z < zc:
@@ -231,8 +231,8 @@ class shift_BEASM2d:
         self.fy = fyy.flatten() * K2
 
         fxx, fyy = fxx.astype(np.complex128), fyy.astype(np.complex128)
-        self.H = np.exp(1j * k * (wvls * fxx * s0 + wvls * fyy * t0 + z * np.sqrt(1 - (fxx * wvls)**2 - (fyy * wvls)**2)))
-        # self.H = np.exp(1j * k * z * np.sqrt(1 - (fxx * wvls)**2 - (fyy * wvls)**2))
+        # self.H = np.exp(1j * k * (wvls * fxx * s0 + wvls * fyy * t0 + z * np.sqrt(1 - (fxx * wvls)**2 - (fyy * wvls)**2)))
+        self.H = np.exp(1j * k * z * np.sqrt(1 - (fxx * wvls)**2 - (fyy * wvls)**2))
         # self.H = np.exp(1j * k * (wvls * fxx * s0 + wvls * fyy * t0 + z * np.sqrt(1 - (fxx * wvls)**2 - (fyy * wvls)**2)))
         self.H = self.H.flatten()
         
