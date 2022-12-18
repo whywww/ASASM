@@ -1,0 +1,55 @@
+import torch
+import math
+
+
+def mdft(in_matrix, x, y, fx, fy):
+    'x,fx: vertical; y,fy: horizontal'
+    x = x.unsqueeze(-1)
+    y = y.unsqueeze(-2)
+    fx = fx.unsqueeze(-2)
+    fy = fy.unsqueeze(-1)
+    mx = torch.exp(-2 * torch.pi * 1j * torch.matmul(x, fx))
+    my = torch.exp(-2 * torch.pi * 1j * torch.matmul(fy, y))
+    out_matrix = torch.matmul(torch.matmul(my, in_matrix), mx)
+
+    lx = torch.numel(x)
+    ly = torch.numel(y)
+    if lx == 1:
+        dx = 1
+    else:
+        dx = (torch.squeeze(x)[-1] - torch.squeeze(x)[0]) / (lx - 1)
+
+    if ly == 1:
+        dy = 1
+    else:
+        dy = (torch.squeeze(y)[-1] - torch.squeeze(y)[0]) / (ly - 1)
+
+    out_matrix = out_matrix * dx * dy  # the result is only valid for uniform sampling
+    return out_matrix
+
+
+def midft(in_matrix, x, y, fx, fy):
+    x = x.unsqueeze(-2)
+    y = y.unsqueeze(-1)
+    fx = fx.unsqueeze(-1)
+    fy = fy.unsqueeze(-2)
+    mx = torch.exp(2 * torch.pi * 1j * torch.matmul(fx, x))
+    my = torch.exp(2 * torch.pi * 1j * torch.matmul(y, fy))
+    out_matrix = torch.matmul(torch.matmul(my, in_matrix), mx)
+
+    lfx = torch.numel(fx)
+    lfy = torch.numel(fy)
+    if lfx == 1:
+        dfx = 1
+    else:
+        dfx = (torch.squeeze(fx)[-1] - torch.squeeze(fx)[0]) / (lfx - 1)
+
+    if lfy == 1:
+        dfy = 1
+    else:
+        dfy = (torch.squeeze(fy)[-1] - torch.squeeze(fy)[0]) / (lfy - 1)
+
+    out_matrix = out_matrix * dfx * dfy  # the result is only valid for uniform sampling
+    return out_matrix
+
+
