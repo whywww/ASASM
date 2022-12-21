@@ -56,7 +56,7 @@ def midft(in_matrix, x, y, fx, fy):
 
 class AdpativeSamplingASM():
     def __init__(self, thetaX, thetaY, z, xvec, yvec, svec, tvec, 
-                wavelength, effective_bandwidths, device, offset):
+                wavelength, effective_bandwidths, device):
         '''
         :param xvec, yvec: vectors of source coordinates
         :param wavelengths: wavelengths
@@ -110,8 +110,8 @@ class AdpativeSamplingASM():
         fymax = torch.clamp(fymax, -1/wavelength, 1/wavelength)  # drop the evanescent wave
 
         denom = max(1 - (wavelength * fxmax)**2 - (wavelength * fymax) ** 2, eps)
-        # checkterm = -z * offx * wavelength / denom 
-        # print(f'adding H shift decreases sampling number by { 2 * fbx * (abs(checkterm) - abs(checkterm + s0)):.0f}.')
+        checkterm = -z * offx * wavelength / denom 
+        print(f'adding H shift decreases sampling number by { 2 * fbx * (abs(checkterm) - abs(checkterm + s0)):.0f}.')
         s_f = (2 * wavelength * z * fxmax) / torch.sqrt(denom) + 2 * abs(s0)
         t_f = (2 * wavelength * z * fymax) / torch.sqrt(denom) + 2 * abs(t0)
         dfxMax1 = 1 / s_f

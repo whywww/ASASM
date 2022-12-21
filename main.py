@@ -171,7 +171,7 @@ print('----------------- Propagating with ASMMM -----------------')
 from ASASM import AdpativeSamplingASM
 device = 'cpu'
 # device = 'cuda:3'
-prop = AdpativeSamplingASM(thetaX, thetaY, z, x, y, s, t, lam, B, device, (s0,t0))
+prop = AdpativeSamplingASM(thetaX, thetaY, z, x, y, s, t, lam, B, device)
 E1_res = E1 / get_plane_wave(k, (x0, y0), np.stack((xx, yy), axis=0), zo)
 start = time.time()
 U2 = prop(E1, decomposed=False)
