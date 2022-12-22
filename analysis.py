@@ -1,15 +1,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
+from PIL import Image 
+
+def save_image(image, save_path):
+    image /= image.max()
+    im = Image.fromarray(np.uint8(image*255))
+    im.save(save_path)
 
 
-N = 1431
-thetaX = 5
-thetaY = 5
+N = 2048
+thetaX = 10
+thetaY = 10
 
-read_path = f"results1/BEASM{N}-{thetaX, thetaY}.csv"
-Uout = np.genfromtxt(read_path, delimiter=',')
-
-# save phase image
-save_path = f"results1/BEASM{N}-{thetaX, thetaY}-phi.png"
-cv2.imwrite(save_path, (np.angle(Uout)/2/np.pi+1)*255)
+read_path = f"results/BEASM{N,N}-{thetaX,thetaY}"

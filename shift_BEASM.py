@@ -1,5 +1,6 @@
 import numpy as np
 import finufft
+from utils import save_image
 
 
 class BEASM1d():
@@ -154,7 +155,7 @@ class shift_BEASM2d:
         self.x = xx.flatten() / np.max(np.abs(xx)) * np.pi
         self.y = yy.flatten() / np.max(np.abs(yy)) * np.pi
         self.xmax, self.ymax = xvec.max(), yvec.max()
-        self.smax, self.tmax = svec.max(), tvec.max()
+        # self.smax, self.tmax = svec.max(), tvec.max()
 
         # the target points
         ss, tt = np.meshgrid(svec - s0, tvec - t0, indexing='xy')
@@ -165,7 +166,7 @@ class shift_BEASM2d:
         Ry = np.sqrt(wvls * z / Ny / pitchy**2)
         # Rx = Ry = 1  # this is shift-BLASM
         Lx = Rx * Nx * pitchx  # maximum half width of observation window after band extending
-        Ly = Ry * Ny * pitchy  # maximum half width of observation window after band extending
+        Ly = Ry * Ny * pitchy
         fx_limP = 1 / wvls / np.sqrt((z / (s0 + Lx))**2 + 1)
         fx_limN = 1 / wvls / np.sqrt((z / (s0 - Lx))**2 + 1)
         fy_limP = 1 / wvls / np.sqrt((z / (t0 + Ly))**2 + 1)
@@ -184,11 +185,16 @@ class shift_BEASM2d:
         dfx = (fx_ue - fx_le) / (Nx * pad)
         dfy = (fy_ue - fy_le) / (Ny * pad)
 
+        # the limit where all frequencies exceed [-fftmaxX, fftmaxX) and [-fftmaxY, fftmaxY)
         s0_lim1 = z * wvls / np.sqrt(4*pitchx**2-wvls**2) + Lx
         s0_lim2 = z * wvls / np.sqrt(4*pitchx**2-wvls**2) - Lx
         s0_lim = max(abs(s0_lim1), abs(s0_lim2))
-        theta_max = np.arctan2(s0_lim, z) * 180 / np.pi
-        print(f"The oblique angle should not exceed {theta_max:.2f} degrees!")
+        thetaX_max = np.arctan2(s0_lim, z) * 180 / np.pi
+        t0_lim1 = z * wvls / np.sqrt(4*pitchy**2-wvls**2) + Ly
+        t0_lim2 = z * wvls / np.sqrt(4*pitchy**2-wvls**2) - Ly
+        t0_lim = max(abs(t0_lim1), abs(t0_lim2))
+        thetaY_max = np.arctan2(t0_lim, z) * 180 / np.pi
+        print(f"The oblique angle should not exceed ({thetaX_max:.1f}, {thetaY_max:.1f}) degrees!")
         assert dfx > 0 and dfy > 0
 
         fx = np.linspace(fx_le, fx_ue - dfx, Nx * pad, dtype=dtype)
@@ -210,7 +216,7 @@ class shift_BEASM2d:
         print(f'frequency sampling number = {Nx*pad, Ny*pad}')
 
 
-    def __call__(self, E0):
+    def __call__(self, E0, save_path=None):
         
         iflag = -1
         eps = 1e-12
@@ -218,13 +224,14 @@ class shift_BEASM2d:
         E0 = E0.flatten()
         
         Fu = finufft.nufft2d3(self.x, self.y, E0, self.fx, self.fy, isign=iflag, eps=eps)
-        Eout = finufft.nufft2d3(self.fx/self.Nx * np.pi, self.fy/self.Ny * np.pi, self.H * Fu, 
-                        self.s/self.xmax * self.Mx, self.t/self.ymax * self.My, 
+        Eout = finufft.nufft2d3(self.fx / self.Nx * np.pi, self.fy / self.Ny * np.pi, self.H * Fu, 
+                        self.s / self.xmax * self.Mx, self.t / self.ymax * self.My, 
                         isign=-iflag, eps=eps).reshape(self.My, self.Mx)
 
         Eout /= np.max(np.abs(Eout))
 
-        # abs(Fu.reshape(self.Ny*1, self.Nx*1))
-        # np.angle(self.H.reshape(shape))
-        # np.abs(Eout) np.angle(Eout) 
+        if save_path is not None:
+            pad = 1
+            save_image(abs(Fu.reshape(self.Ny*pad, self.Nx*pad)), f'{save_path}-FU.png')
+
         return Eout

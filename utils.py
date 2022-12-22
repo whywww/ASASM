@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+from PIL import Image 
 
 
 def draw_ellipse(image, center, axes):
@@ -39,3 +40,9 @@ def compute_bandwidth(is_plane_wave, D, wvls, pitchx, pitchy, l1=None, s=5):
     bandwidthY = min(1 / pitchy, bandwidth)
 
     return bandwidthX, bandwidthY
+
+
+def save_image(image, save_path):
+    image /= image.max()
+    im = Image.fromarray(np.uint8(image*255))
+    im.save(save_path)
