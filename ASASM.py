@@ -112,13 +112,6 @@ class AdpativeSamplingASM():
         fymax = torch.clamp(fymax, -1 / wavelength, 1 / wavelength)
         denom = max(1 - (wavelength * fxmax)**2 - (wavelength * fymax) ** 2, eps)
 
-        # check if adding the shift in TF will reduce frequency sampling 
-        # checkterm = -z * offx * wavelength / denom  # additional term in Grad(H)
-        # Lfx_reduced = int(2 * fbx * (abs(checkterm) - abs(checkterm + s0)))
-        # checkterm = -z * offy * wavelength / denom  # additional term in Grad(H)
-        # Lfy_reduced = int(2 * fby * (abs(checkterm) - abs(checkterm + t0)))
-        # print(f'adding H shift decreases frequency sampling number by {Lfx_reduced, Lfy_reduced}.')
-        
         # maximum sampling interval limited by TF
         # dfxMax1 = dfyMax1 = torch.sqrt(1 - (wavelength * fmax_fft) ** 2) / (2 * wavelength * z * fmax_fft)  # on-axis
         s_f = abs((2 * wavelength * z * fxmax) / torch.sqrt(denom) - 2 * s0)
@@ -127,9 +120,11 @@ class AdpativeSamplingASM():
         dfyMax1 = 1 / t_f
 
         # check if adding the shift in TF will reduce frequency sampling 
-        # s_f1 = abs((2 * wavelength * z * fxmax) / torch.sqrt(denom))
-        # t_f1 = abs((2 * wavelength * z * fymax) / torch.sqrt(denom))
-        # print(s_f1 >= s_f, t_f1 >= t_f)
+        s_f1 = abs((2 * wavelength * z * fxmax) / torch.sqrt(denom))
+        t_f1 = abs((2 * wavelength * z * fymax) / torch.sqrt(denom))
+        print('Adding s0 will increase sampling:', s_f1 < s_f, t_f1 < t_f)
+        dn = max(1 - (wavelength * 2 * offx)**2 - (wavelength * fymax) ** 2, eps)
+        print('Adding s0 will increase sampling:', wavelength * z * 2 * offx / dn < s0)
 
         # maximum sampling interval limited by observation plane
         dfxMax2 = 1 / 2 / abs(svec).max()

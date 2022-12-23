@@ -125,17 +125,17 @@ E1 = pupil * get_exact_spherical_wave(k, (x0, y0), np.stack((xx, yy), axis=0), z
 B = compute_bandwidth(False, 2*r, lam, pitchx, pitchy, l1=1/(1/f-1/zo), s=1.5)
 
 
-print('-------------- Propagating with shift BEASM --------------')
-path = f'results1/BEASM{Nx, Ny}-({thetaX / np.pi * 180:.0f}, {thetaY / np.pi * 180:.0f})'
-from shift_BEASM import shift_BEASM2d
-prop = shift_BEASM2d((s0, t0), z, x, y, s, t, lam)
-start = time.time()
-U1 = prop(E1, save_path=path)
-end = time.time()
-print(f'Time elapsed for Shift-BEASM: {end-start:.2f}')
-save_image(abs(U1), f'{path}.png')
-phase = np.angle(U1) % (2*np.pi)
-save_image(phase, f'{path}-Phi.png')
+# print('-------------- Propagating with shift BEASM --------------')
+# path = f'results1/BEASM{Nx, Ny}-({thetaX / np.pi * 180:.0f}, {thetaY / np.pi * 180:.0f})'
+# from shift_BEASM import shift_BEASM2d
+# prop = shift_BEASM2d((s0, t0), z, x, y, s, t, lam)
+# start = time.time()
+# U1 = prop(E1, save_path=path)
+# end = time.time()
+# print(f'Time elapsed for Shift-BEASM: {end-start:.2f}')
+# save_image(abs(U1), f'{path}.png')
+# phase = np.angle(U1) % (2*np.pi)
+# save_image(phase, f'{path}-Phi.png')
 
 
 print('----------------- Propagating with ASASM -----------------')
@@ -155,17 +155,17 @@ phase = np.angle(U2) % (2*np.pi)
 save_image(phase, f'{path}-Phi.png')
 
 
-print('-------------- Propagating with RS integral --------------')
-path = f'results/RS{Nx, Ny}-({thetaX / np.pi * 180:.0f}, {thetaY / np.pi * 180:.0f})'
-# from RS import RSDiffraction_INT  # cpu, super slow
-# prop = RSDiffraction_INT()
-# U0 = prop(E1, z, x, y, s, t, lam)
-from RS import RSDiffraction_GPU
-prop = RSDiffraction_GPU(z, x, y, s, t, lam, 'cuda:1')
-start = time.time()
-U0 = prop(E1)
-end = time.time()
-print(f'Time elapsed for RS: {end-start:.2f}')
-save_image(abs(U0), f'{path}.png')
-phase = np.angle(U0) % (2*np.pi)
-save_image(phase, f'{path}-Phi.png')
+# print('-------------- Propagating with RS integral --------------')
+# path = f'results/RS{Nx, Ny}-({thetaX / np.pi * 180:.0f}, {thetaY / np.pi * 180:.0f})'
+# # from RS import RSDiffraction_INT  # cpu, super slow
+# # prop = RSDiffraction_INT()
+# # U0 = prop(E1, z, x, y, s, t, lam)
+# from RS import RSDiffraction_GPU
+# prop = RSDiffraction_GPU(z, x, y, s, t, lam, 'cuda:1')
+# start = time.time()
+# U0 = prop(E1)
+# end = time.time()
+# print(f'Time elapsed for RS: {end-start:.2f}')
+# save_image(abs(U0), f'{path}.png')
+# phase = np.angle(U0) % (2*np.pi)
+# save_image(phase, f'{path}-Phi.png')
