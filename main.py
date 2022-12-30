@@ -88,8 +88,8 @@ z = 1/(1/f - 1/zo)  # aperture-sensor distance
 r = f / 16 / 2  # radius of aperture
 
 # define incident wave
-thetaX = 10 / 180 * np.pi
-thetaY = 10 / 180 * np.pi
+thetaX = 8 / 180 * np.pi
+thetaY = 8 / 180 * np.pi
 R = zo / np.sqrt(1 - np.sin(thetaX)**2 - np.sin(thetaY)**2)
 x0, y0 = R * np.sin(thetaX), R * np.sin(thetaY)
 s0, t0 = -x0 / zo * z, -y0 / zo * z
@@ -125,34 +125,36 @@ E1 = pupil * get_exact_spherical_wave(k, (x0, y0), np.stack((xx, yy), axis=0), z
 B = compute_bandwidth(False, 2*r, lam, pitchx, pitchy, l1=1/(1/f-1/zo), s=1.5)
 
 
-# print('-------------- Propagating with shift BEASM --------------')
-# path = f'results1/BEASM{Nx, Ny}-({thetaX / np.pi * 180:.0f}, {thetaY / np.pi * 180:.0f})'
-# from shift_BEASM import shift_BEASM2d
-# prop = shift_BEASM2d((s0, t0), z, x, y, s, t, lam)
-# start = time.time()
-# U1 = prop(E1, save_path=path)
-# end = time.time()
-# print(f'Time elapsed for Shift-BEASM: {end-start:.2f}')
-# save_image(abs(U1), f'{path}.png')
-# phase = np.angle(U1) % (2*np.pi)
-# save_image(phase, f'{path}-Phi.png')
-
-
-print('----------------- Propagating with ASASM -----------------')
-path = f'results1/ASASM{Nx, Ny}-({thetaX / np.pi * 180:.0f}, {thetaY / np.pi * 180:.0f})'
-from ASASM import AdpativeSamplingASM
-device = 'cpu'
-# device = 'cuda:3'
-prop = AdpativeSamplingASM(thetaX, thetaY, z, x, y, s, t, lam, B, device, crop_bandwidth=True)
-# E1_res = E1 / get_plane_wave(k, (x0, y0), np.stack((xx, yy), axis=0), zo)
+print('-------------- Propagating with shift BEASM --------------')
+path = f'results1/BEASM{Nx, Ny}-({thetaX / np.pi * 180:.0f}, {thetaY / np.pi * 180:.0f})'
+from shift_BEASM import shift_BEASM2d
+prop = shift_BEASM2d((s0, t0), z, x, y, s, t, lam)
 start = time.time()
-U2 = prop(E1, decomposed=False, save_path=path)
-# U2 = prop(E1_res, decomposed=True, spectrum_path=f'{path}-FU.png')
+# U1 = prop(E1)
+U1 = prop(E1, save_path=path)
 end = time.time()
-print(f'Time elapsed for ASASM: {end-start:.2f}')
-save_image(abs(U2), f'{path}.png')
-phase = np.angle(U2) % (2*np.pi)
+print(f'Time elapsed for Shift-BEASM: {end-start:.2f}')
+save_image(abs(U1), f'{path}.png')
+phase = np.angle(U1) % (2*np.pi)
 save_image(phase, f'{path}-Phi.png')
+
+
+# print('----------------- Propagating with ASASM -----------------')
+# path = f'results1/ASASM{Nx, Ny}-({thetaX / np.pi * 180:.0f}, {thetaY / np.pi * 180:.0f})'
+# from ASASM import AdpativeSamplingASM
+# device = 'cpu'
+# # device = 'cuda:3'
+# prop = AdpativeSamplingASM(thetaX, thetaY, z, x, y, s, t, lam, B, device, crop_bandwidth=True)
+# E1_res = E1 / get_plane_wave(k, (x0, y0), np.stack((xx, yy), axis=0), zo)
+# start = time.time()
+# # U2 = prop(E1, decomposed=False)
+# U2 = prop(E1, decomposed=False, save_path=path)
+# # U2 = prop(E1_res, decomposed=True)
+# end = time.time()
+# print(f'Time elapsed for ASASM: {end-start:.2f}')
+# save_image(abs(U2), f'{path}.png')
+# phase = np.angle(U2) % (2*np.pi)
+# save_image(phase, f'{path}-Phi.png')
 
 
 # print('-------------- Propagating with RS integral --------------')

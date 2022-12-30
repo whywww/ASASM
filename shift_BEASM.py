@@ -125,7 +125,6 @@ class BEASM2d():
     
 # TODO:
 # 1. torch+cuda implementation
-# 3. test other parameters
 
 
 class shift_BEASM2d:
@@ -152,9 +151,9 @@ class shift_BEASM2d:
         # the source points
         s0, t0 = st_offset
         xx, yy = np.meshgrid(xvec, yvec, indexing='xy')
-        self.x = xx.flatten() / np.max(np.abs(xx)) * np.pi
-        self.y = yy.flatten() / np.max(np.abs(yy)) * np.pi
-        self.xmax, self.ymax = xvec.max(), yvec.max()
+        self.x = xx.flatten() / np.max(np.abs(xvec)) * np.pi
+        self.y = yy.flatten() / np.max(np.abs(yvec)) * np.pi
+        self.xmax, self.ymax = abs(xvec).max(), abs(yvec).max()
         # self.smax, self.tmax = svec.max(), tvec.max()
 
         # the target points
@@ -162,6 +161,8 @@ class shift_BEASM2d:
         self.s, self.t = ss.flatten(), tt.flatten()
 
         # the frequency points
+        self.Lfx = Nx * pad
+        self.Lfy = Ny * pad
         Rx = np.sqrt(wvls * z / Nx / pitchx**2)
         Ry = np.sqrt(wvls * z / Ny / pitchy**2)
         # Rx = Ry = 1  # this is shift-BLASM
@@ -182,8 +183,8 @@ class shift_BEASM2d:
         fy_ue = np.clip(fy_ue, -fftmaxY, fftmaxY)
         fy_le = np.clip(fy_le, -fftmaxY, fftmaxY)
 
-        dfx = (fx_ue - fx_le) / (Nx * pad)
-        dfy = (fy_ue - fy_le) / (Ny * pad)
+        dfx = (fx_ue - fx_le) / self.Lfx
+        dfy = (fy_ue - fy_le) / self.Lfy
 
         # the limit where all frequencies exceed [-fftmaxX, fftmaxX) and [-fftmaxY, fftmaxY)
         s0_lim1 = z * wvls / np.sqrt(4*pitchx**2-wvls**2) + Lx
@@ -197,8 +198,8 @@ class shift_BEASM2d:
         print(f"The oblique angle should not exceed ({thetaX_max:.1f}, {thetaY_max:.1f}) degrees!")
         assert dfx > 0 and dfy > 0
 
-        fx = np.linspace(fx_le, fx_ue - dfx, Nx * pad, dtype=dtype)
-        fy = np.linspace(fy_le, fy_ue - dfy, Ny * pad, dtype=dtype)
+        fx = np.linspace(fx_le, fx_ue - dfx, self.Lfx, dtype=dtype)
+        fy = np.linspace(fy_le, fy_ue - dfy, self.Lfy, dtype=dtype)
         fxx, fyy = np.meshgrid(fx, fy, indexing='xy')
 
         K1 = Nx / 2 / fftmaxX
@@ -213,7 +214,7 @@ class shift_BEASM2d:
         # self.H = np.exp(1j * k * z * np.sqrt(1 - (fxx * wvls)**2 - (fyy * wvls)**2))
         self.H = self.H.flatten()
         
-        print(f'frequency sampling number = {Nx*pad, Ny*pad}')
+        print(f'frequency sampling number = {self.Lfx, self.Lfy}')
 
 
     def __call__(self, E0, save_path=None):
@@ -231,7 +232,6 @@ class shift_BEASM2d:
         Eout /= np.max(np.abs(Eout))
 
         if save_path is not None:
-            pad = 1
-            save_image(abs(Fu.reshape(self.Ny*pad, self.Nx*pad)), f'{save_path}-FU.png')
+            save_image(abs(Fu.reshape(self.Lfy, self.Lfx)), f'{save_path}-FU.png')
 
         return Eout
