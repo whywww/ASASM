@@ -114,17 +114,19 @@ class AdpativeSamplingASM():
 
         # maximum sampling interval limited by TF
         # dfxMax1 = dfyMax1 = torch.sqrt(1 - (wavelength * fmax_fft) ** 2) / (2 * wavelength * z * fmax_fft)  # on-axis
-        s_f = abs((2 * wavelength * z * fxmax) / torch.sqrt(denom) - 2 * s0)
-        t_f = abs((2 * wavelength * z * fymax) / torch.sqrt(denom) - 2 * t0)
+        s_f = abs(2 * wavelength * z * fxmax) / torch.sqrt(denom) - 2 * abs(s0)
+        t_f = abs(2 * wavelength * z * fymax) / torch.sqrt(denom) - 2 * abs(t0)
         dfxMax1 = 1 / s_f
         dfyMax1 = 1 / t_f
 
         # check if adding the shift in TF will reduce frequency sampling 
-        s_f1 = abs((2 * wavelength * z * fxmax) / torch.sqrt(denom))
-        t_f1 = abs((2 * wavelength * z * fymax) / torch.sqrt(denom))
-        print('Adding s0 will increase sampling:', s_f1 < s_f, t_f1 < t_f)
-        dn = max(1 - (wavelength * 2 * offx)**2 - (wavelength * fymax) ** 2, eps)
-        print('Adding s0 will increase sampling:', wavelength * z * 2 * offx / dn < s0)
+        fxmax1, fymax1 = fbx / 2 + offx, fby / 2 + offy
+        fxmin1, fymin1 = -fbx / 2 + offx, -fby / 2 + offy
+        denom_max = max(1 - (wavelength * fxmax1)**2 - (wavelength * fymax1) ** 2, eps)
+        denom_min = max(1 - (wavelength * fxmin1)**2 - (wavelength * fymin1) ** 2, eps)
+        threshold = wavelength * z * fxmax1 / denom_max + wavelength * z * fxmin1 / denom_min
+        print("Adding H-shift will reduce sampling", abs(s0) < abs(threshold))
+
 
         # maximum sampling interval limited by observation plane
         dfxMax2 = 1 / 2 / abs(svec).max()

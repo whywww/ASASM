@@ -46,3 +46,18 @@ def save_image(image, save_path):
     image /= image.max()
     im = Image.fromarray(np.uint8(image*255))
     im.save(save_path)
+
+
+def signaltonoise_dB(a, axis=0, ddof=0):
+    a = np.asanyarray(a)
+    m = a.mean(axis)
+    sd = a.std(axis=axis, ddof=ddof)
+    return 20*np.log10(abs(np.where(sd == 0, 0, m/sd)))
+
+
+def psnr(img1, img2, max_value=255):
+    """"Calculating peak signal-to-noise ratio (PSNR) between two images."""
+    mse = np.mean((np.array(img1, dtype=np.float32) - np.array(img2, dtype=np.float32)) ** 2)
+    if mse == 0:
+        return 100
+    return 20 * np.log10(max_value / (np.sqrt(mse)))

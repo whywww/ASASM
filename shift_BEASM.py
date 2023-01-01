@@ -125,7 +125,6 @@ class BEASM2d():
     
 # TODO:
 # 1. torch+cuda implementation
-# 3. test other parameters
 
 
 class shift_BEASM2d:
@@ -152,16 +151,18 @@ class shift_BEASM2d:
         # the source points
         s0, t0 = st_offset
         xx, yy = np.meshgrid(xvec, yvec, indexing='xy')
-        self.x = xx.flatten() / np.max(np.abs(xx)) * np.pi
-        self.y = yy.flatten() / np.max(np.abs(yy)) * np.pi
-        self.xmax, self.ymax = xvec.max(), yvec.max()
-        # self.smax, self.tmax = svec.max(), tvec.max()
+        self.x = xx.flatten()
+        self.y = yy.flatten()
+        self.xmax, self.ymax = abs(xvec).max(), abs(yvec).max()
 
         # the target points
         ss, tt = np.meshgrid(svec - s0, tvec - t0, indexing='xy')
         self.s, self.t = ss.flatten(), tt.flatten()
+        # self.smax, self.tmax = (svec).max(), (tvec).max()
 
         # the frequency points
+        self.Lfx = Nx * pad
+        self.Lfy = Ny * pad
         Rx = np.sqrt(wvls * z / Nx / pitchx**2)
         Ry = np.sqrt(wvls * z / Ny / pitchy**2)
         # Rx = Ry = 1  # this is shift-BLASM
@@ -182,8 +183,8 @@ class shift_BEASM2d:
         fy_ue = np.clip(fy_ue, -fftmaxY, fftmaxY)
         fy_le = np.clip(fy_le, -fftmaxY, fftmaxY)
 
-        dfx = (fx_ue - fx_le) / (Nx * pad)
-        dfy = (fy_ue - fy_le) / (Ny * pad)
+        dfx = (fx_ue - fx_le) / self.Lfx
+        dfy = (fy_ue - fy_le) / self.Lfy
 
         # the limit where all frequencies exceed [-fftmaxX, fftmaxX) and [-fftmaxY, fftmaxY)
         s0_lim1 = z * wvls / np.sqrt(4*pitchx**2-wvls**2) + Lx
@@ -197,15 +198,17 @@ class shift_BEASM2d:
         print(f"The oblique angle should not exceed ({thetaX_max:.1f}, {thetaY_max:.1f}) degrees!")
         assert dfx > 0 and dfy > 0
 
-        fx = np.linspace(fx_le, fx_ue - dfx, Nx * pad, dtype=dtype)
-        fy = np.linspace(fy_le, fy_ue - dfy, Ny * pad, dtype=dtype)
+        fx = np.linspace(fx_le, fx_ue - dfx, self.Lfx, dtype=dtype)
+        fy = np.linspace(fy_le, fy_ue - dfy, self.Lfy, dtype=dtype)
         fxx, fyy = np.meshgrid(fx, fy, indexing='xy')
 
-        K1 = Nx / 2 / fftmaxX
-        K2 = Ny / 2 / fftmaxY
+        # K1 = Nx / 2 / fftmaxX
+        # K2 = Ny / 2 / fftmaxY
 
-        self.fx = fxx.flatten() * K1
-        self.fy = fyy.flatten() * K2
+        self.fxmax = fx.max()
+        self.fymax = fy.max()
+        self.fx = fxx.flatten() 
+        self.fy = fyy.flatten() 
 
         fxx, fyy = fxx.astype(np.complex128), fyy.astype(np.complex128)
         self.H = np.exp(1j * k * (wvls * fxx * s0 + wvls * fyy * t0 
@@ -213,7 +216,7 @@ class shift_BEASM2d:
         # self.H = np.exp(1j * k * z * np.sqrt(1 - (fxx * wvls)**2 - (fyy * wvls)**2))
         self.H = self.H.flatten()
         
-        print(f'frequency sampling number = {Nx*pad, Ny*pad}')
+        print(f'frequency sampling number = {self.Lfx, self.Lfy}')
 
 
     def __call__(self, E0, save_path=None):
@@ -223,15 +226,15 @@ class shift_BEASM2d:
         E0 = E0.astype(np.complex128)
         E0 = E0.flatten()
         
-        Fu = finufft.nufft2d3(self.x, self.y, E0, self.fx, self.fy, isign=iflag, eps=eps)
-        Eout = finufft.nufft2d3(self.fx / self.Nx * np.pi, self.fy / self.Ny * np.pi, self.H * Fu, 
-                        self.s / self.xmax * self.Mx, self.t / self.ymax * self.My, 
-                        isign=-iflag, eps=eps).reshape(self.My, self.Mx)
+        Fu = finufft.nufft2d3(self.x / self.xmax * np.pi, self.y / self.ymax * np.pi, E0, 
+                            self.fx * self.xmax * 2, self.fy * self.ymax * 2, isign=iflag, eps=eps)
+        Eout = finufft.nufft2d3(self.fx / self.fxmax * np.pi, self.fy / self.fymax * np.pi, self.H * Fu, 
+                            self.s * self.fxmax * 2, self.t * self.fymax * 2, 
+                            isign=-iflag, eps=eps).reshape(self.My, self.Mx)
 
         Eout /= np.max(np.abs(Eout))
 
         if save_path is not None:
-            pad = 1
-            save_image(abs(Fu.reshape(self.Ny*pad, self.Nx*pad)), f'{save_path}-FU.png')
+            save_image(abs(Fu.reshape(self.Lfy, self.Lfx)), f'{save_path}-FU.png')
 
         return Eout
