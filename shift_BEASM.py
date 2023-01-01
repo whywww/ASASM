@@ -151,14 +151,14 @@ class shift_BEASM2d:
         # the source points
         s0, t0 = st_offset
         xx, yy = np.meshgrid(xvec, yvec, indexing='xy')
-        self.x = xx.flatten() / np.max(np.abs(xvec)) * np.pi
-        self.y = yy.flatten() / np.max(np.abs(yvec)) * np.pi
+        self.x = xx.flatten()
+        self.y = yy.flatten()
         self.xmax, self.ymax = abs(xvec).max(), abs(yvec).max()
-        # self.smax, self.tmax = svec.max(), tvec.max()
 
         # the target points
         ss, tt = np.meshgrid(svec - s0, tvec - t0, indexing='xy')
         self.s, self.t = ss.flatten(), tt.flatten()
+        # self.smax, self.tmax = (svec).max(), (tvec).max()
 
         # the frequency points
         self.Lfx = Nx * pad
@@ -202,11 +202,13 @@ class shift_BEASM2d:
         fy = np.linspace(fy_le, fy_ue - dfy, self.Lfy, dtype=dtype)
         fxx, fyy = np.meshgrid(fx, fy, indexing='xy')
 
-        K1 = Nx / 2 / fftmaxX
-        K2 = Ny / 2 / fftmaxY
+        # K1 = Nx / 2 / fftmaxX
+        # K2 = Ny / 2 / fftmaxY
 
-        self.fx = fxx.flatten() * K1
-        self.fy = fyy.flatten() * K2
+        self.fxmax = fx.max()
+        self.fymax = fy.max()
+        self.fx = fxx.flatten() 
+        self.fy = fyy.flatten() 
 
         fxx, fyy = fxx.astype(np.complex128), fyy.astype(np.complex128)
         self.H = np.exp(1j * k * (wvls * fxx * s0 + wvls * fyy * t0 
@@ -224,10 +226,11 @@ class shift_BEASM2d:
         E0 = E0.astype(np.complex128)
         E0 = E0.flatten()
         
-        Fu = finufft.nufft2d3(self.x, self.y, E0, self.fx, self.fy, isign=iflag, eps=eps)
-        Eout = finufft.nufft2d3(self.fx / self.Nx * np.pi, self.fy / self.Ny * np.pi, self.H * Fu, 
-                        self.s / self.xmax * self.Mx, self.t / self.ymax * self.My, 
-                        isign=-iflag, eps=eps).reshape(self.My, self.Mx)
+        Fu = finufft.nufft2d3(self.x / self.xmax * np.pi, self.y / self.ymax * np.pi, E0, 
+                            self.fx * self.xmax * 2, self.fy * self.ymax * 2, isign=iflag, eps=eps)
+        Eout = finufft.nufft2d3(self.fx / self.fxmax * np.pi, self.fy / self.fymax * np.pi, self.H * Fu, 
+                            self.s * self.fxmax * 2, self.t * self.fymax * 2, 
+                            isign=-iflag, eps=eps).reshape(self.My, self.Mx)
 
         Eout /= np.max(np.abs(Eout))
 
