@@ -94,8 +94,8 @@ class AdpativeSamplingASM():
 
         # off-axis offset
         s0, t0 = svec[len(svec)//2], tvec[len(tvec)//2]
-        offx = -torch.sin(thetaX) / wavelength
-        offy = -torch.sin(thetaY) / wavelength
+        offx = -torch.sin(thetaX / 180 * math.pi) / wavelength
+        offy = -torch.sin(thetaY / 180 * math.pi) / wavelength
 
         # shifted frequencies
         fxmax = fbx / 2 + abs(offx)
@@ -125,8 +125,7 @@ class AdpativeSamplingASM():
         denom_max = max(1 - (wavelength * fxmax1)**2 - (wavelength * fymax1) ** 2, eps)
         denom_min = max(1 - (wavelength * fxmin1)**2 - (wavelength * fymin1) ** 2, eps)
         threshold = wavelength * z * fxmax1 / denom_max + wavelength * z * fxmin1 / denom_min
-        print("Adding H-shift will reduce sampling", abs(s0) < abs(threshold))
-
+        print("Adding H-shift will reduce sampling", abs(s0) <= abs(threshold))
 
         # maximum sampling interval limited by observation plane
         dfxMax2 = 1 / 2 / abs(svec).max()
@@ -191,7 +190,7 @@ class AdpativeSamplingASM():
         
         # visualize the eb region
         if save_path is not None:
-            draw_bandwidth(Fu[0], self.fx, self.fy, self.eB,  f'{save_path}-EB.png')
+            draw_bandwidth(Fu[0], self.fx, self.fy, self.eB, f'{save_path}-EB.png')
         
         Fu *= self.mask
         Eout = midft(Fu * self.H, self.s, self.t, fx, fy)
