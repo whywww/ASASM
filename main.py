@@ -5,7 +5,7 @@ python -m debugpy --listen 0.0.0.0:5678 --wait-for-client main.py
 import numpy as np
 import matplotlib.pyplot as plt
 import time
-from utils import compute_bandwidth, save_image
+from utils import compute_bandwidth, save_image, remove_linear_phase
 from vortex_plate import VortexPlate
 
 
@@ -81,7 +81,8 @@ k = 2 * np.pi / lam  # wavenumebr
 
 f = 35e-3  # focal length of lens (if applicable)
 zo = 1.7  # source-aperture distance
-z = 1/(1/f - 1/zo)  # aperture-sensor distance, at focal plane
+zf = 1/(1/f - 1/zo)  # image-side focal distance
+z = zf  # aperture-sensor distance
 r = f / 16 / 2  # radius of aperture
 
 # define incident wave
@@ -106,15 +107,17 @@ xx, yy = np.meshgrid(x, y, indexing='xy')
 # coordinates of observation plane
 # energy spreads at larger angle, so use larger observation window.
 Mx, My = Nx, Ny
-# if max(thetaX, thetaY) <= 15:
-#     l = r * .5
-# elif max(thetaX, thetaY) <= 20:
-#     l = r * 1.5 
-# elif max(thetaX, thetaY) <= 25:
-#     l = r * 2.5
-# elif max(thetaX, thetaY) >= 30:
-#     l = r * 5
-l = r * 5
+if max(thetaX, thetaY) < 15:
+    l = r * .5
+elif max(thetaX, thetaY) == 15:
+    l = r * 1.
+elif max(thetaX, thetaY) <= 20:
+    l = r * 1.5 
+elif max(thetaX, thetaY) <= 25:
+    l = r * 2.5
+elif max(thetaX, thetaY) >= 30:
+    l = r * 5
+# l = r * 5
 
 s = np.linspace(-l / 2 + s0, l / 2 + s0, Mx)
 t = np.linspace(-l / 2 + t0, l / 2 + t0, My)
@@ -123,59 +126,62 @@ t = np.linspace(-l / 2 + t0, l / 2 + t0, My)
 pupil = np.where(xx**2 + yy**2 <= r**2, 1, 0)
 
 # input field
-exps = 1. # np.inf
-phase_plate = VortexPlate(Nx, Ny, m=3)
-E1 = pupil * get_plane_wave(k, x0, y0, xx, yy, zo)
-# E1 = pupil * get_spherical_wave(k, x0, y0, xx, yy, zo) * lens_transfer(k, f, xx, yy)
+exps = 1
+# phase_plate = VortexPlate(Nx, Ny, m=3)
+# E1 = pupil * get_plane_wave(k, x0, y0, xx, yy, zo)
+E1 = pupil * get_spherical_wave(k, x0, y0, xx, yy, zo) * lens_transfer(k, f, xx, yy)
 # E1 = phase_plate.forward(E1)
-B = compute_bandwidth(True, 2*r, lam, pitchx, pitchy, s=exps)  # plane
-# B = compute_bandwidth(False, 2*r, lam, pitchx, pitchy, l1=1/(1/f-1/zo), s=exps)  # others
+# B = compute_bandwidth(True, 2 * r, lam, pitchx, pitchy, s = exps)  # plane
+B = compute_bandwidth(False, 2 * r, lam, pitchx, pitchy, l1 = zf, s = exps)  # others
 
 
-# print('-------------- Propagating with shift BEASM --------------')
-# path = f'results1/BEASM-single{Nx, Ny}-{thetaX, thetaY}'
-# from shift_BEASM import shift_BEASM2d
-# prop = shift_BEASM2d((s0, t0), z, x, y, s, t, lam)
-# start = time.time()
-# U1 = prop(E1)
-# # U1 = prop(E1, save_path=path)
-# end = time.time()
-# print(f'Time elapsed for Shift-BEASM: {end-start:.2f}')
-# save_image(abs(U1), f'{path}.png')
+print('-------------- Propagating with shift BEASM --------------')
+path = f'results/BEASM{Nx, Ny}-{thetaX, thetaY}'
+from shift_BEASM import shift_BEASM2d
+prop = shift_BEASM2d((s0, t0), z, x, y, s, t, lam)
+start = time.time()
+U1 = prop(E1)
+# U1 = prop(E1, save_path=path)
+end = time.time()
+print(f'Time elapsed for Shift-BEASM: {end-start:.2f}')
+save_image(abs(U1), f'{path}.png')
 # phase = np.angle(U1) % (2*np.pi)
-# # save_image(phase, f'{path}-Phi.png')
+phase = remove_linear_phase(np.angle(U1), thetaX, thetaY, s, t, k) # for visualization
+save_image(phase, f'{path}-PhiL.png')
 
 
 print('----------------- Propagating with ASASM -----------------')
-path = f'results2/ASASM-plane{Nx, Ny}-{thetaX, thetaY}-{exps}'
+path = f'results/ASASM-plane{Nx, Ny}-{thetaX, thetaY}'
 from ASASM import AdpativeSamplingASM
 device = 'cpu'
 # device = 'cuda:3'
-prop = AdpativeSamplingASM(thetaX, thetaY, z, x, y, s, t, lam, B, 
-                        device, crop_bandwidth=False)
-# E1_res = E1 / get_plane_wave(k, x0, y0, xx, yy, zo)
+prop = AdpativeSamplingASM(thetaX, thetaY, z, x, y, s, t, zf, lam, B,
+                        device, crop_bandwidth=True)
+E1_res = E1 / get_plane_wave(k, x0, y0, xx, yy, zo)
 start = time.time()
 # U2 = prop(E1, decomposed=False)
-U2 = prop(E1, decomposed=False, save_path=path)
-# U2 = prop(E1_res, decomposed=True)
+# U2 = prop(E1, decomposed=False, save_path=path)
+U2 = prop(E1_res, decomposed=True)
 end = time.time()
 print(f'Time elapsed for ASASM: {end-start:.2f}')
 save_image(abs(U2), f'{path}.png')
-phase = np.angle(U2) % (2*np.pi)
-# save_image(phase, f'{path}-Phi.png')
+# phase = np.angle(U2) % (2*np.pi)
+phase = remove_linear_phase(np.angle(U2), thetaX, thetaY, s, t, k) # for visualization
+save_image(phase, f'{path}-PhiL.png')
 
 
-# print('-------------- Propagating with RS integral --------------')
-# path = f'results2/RS{Nx, Ny}-{thetaX, thetaY}'
-# # from RS import RSDiffraction_INT  # cpu, super slow
-# # prop = RSDiffraction_INT()
-# # U0 = prop(E1, z, x, y, s, t, lam)
-# from RS import RSDiffraction_GPU
-# prop = RSDiffraction_GPU(z, x, y, s, t, lam, 'cuda:3')
-# start = time.time()
-# U0 = prop(E1)
-# end = time.time()
-# print(f'Time elapsed for RS: {end-start:.2f}')
-# save_image(abs(U0), f'{path}.png')
+print('-------------- Propagating with RS integral --------------')
+path = f'results/RS{Nx, Ny}-{thetaX, thetaY}'
+# from RS import RSDiffraction_INT  # cpu, super slow
+# prop = RSDiffraction_INT()
+# U0 = prop(E1, z, x, y, s, t, lam)
+from RS import RSDiffraction_GPU
+prop = RSDiffraction_GPU(z, x, y, s, t, lam, 'cuda:3')
+start = time.time()
+U0 = prop(E1)
+end = time.time()
+print(f'Time elapsed for RS: {end-start:.2f}')
+save_image(abs(U0), f'{path}.png')
 # phase = np.angle(U0) % (2*np.pi)
-# save_image(phase, f'{path}-Phi.png')
+phase = remove_linear_phase(np.angle(U0), thetaX, thetaY, s, t, k) # for visualization
+save_image(phase, f'{path}-PhiL.png')

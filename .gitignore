@@ -1,6 +1,7 @@
 .vscode
 __pycache__
-results1
-results2
-results3
+results-errplot
+results-fig2
+results-s
+results-visual
 .idea

@@ -55,7 +55,7 @@ def midft(in_matrix, x, y, fx, fy):
 
 
 class AdpativeSamplingASM():
-    def __init__(self, thetaX, thetaY, z, xvec, yvec, svec, tvec, 
+    def __init__(self, thetaX, thetaY, z, xvec, yvec, svec, tvec, zf,
                 wavelength, effective_bandwidths, device, crop_bandwidth=True):
         '''
         :param xvec, yvec: vectors of source coordinates
@@ -114,18 +114,12 @@ class AdpativeSamplingASM():
 
         # maximum sampling interval limited by TF
         # dfxMax1 = dfyMax1 = torch.sqrt(1 - (wavelength * fmax_fft) ** 2) / (2 * wavelength * z * fmax_fft)  # on-axis
-        s_f = abs(2 * wavelength * z * fxmax) / torch.sqrt(denom) - 2 * abs(s0)
-        t_f = abs(2 * wavelength * z * fymax) / torch.sqrt(denom) - 2 * abs(t0)
+        # s_f = abs(2 * wavelength * z * fxmax) / torch.sqrt(denom) - 2 * abs(s0)
+        # t_f = abs(2 * wavelength * z * fymax) / torch.sqrt(denom) - 2 * abs(t0)
+        s_f = abs(2 * wavelength * fxmax * (z / torch.sqrt(denom) - zf) - 2 * abs(s0))
+        t_f = abs(2 * wavelength * fymax * (z / torch.sqrt(denom) - zf) - 2 * abs(t0))
         dfxMax1 = 1 / s_f
         dfyMax1 = 1 / t_f
-
-        # check if adding the shift in TF will reduce frequency sampling 
-        fxmax1, fymax1 = fbx / 2 + offx, fby / 2 + offy
-        fxmin1, fymin1 = -fbx / 2 + offx, -fby / 2 + offy
-        denom_max = max(1 - (wavelength * fxmax1)**2 - (wavelength * fymax1) ** 2, eps)
-        denom_min = max(1 - (wavelength * fxmin1)**2 - (wavelength * fymin1) ** 2, eps)
-        threshold = wavelength * z * fxmax1 / denom_max + wavelength * z * fxmin1 / denom_min
-        print("Adding H-shift will reduce sampling", abs(s0) <= abs(threshold))
 
         # maximum sampling interval limited by observation plane
         dfxMax2 = 1 / 2 / abs(svec).max()
@@ -134,6 +128,7 @@ class AdpativeSamplingASM():
         # minimum requirements of sampling interval in k space
         dfx = min(dfxMax2, dfxMax1)
         dfy = min(dfyMax2, dfyMax1)
+        print(f'Sampling interval limited by UH: {dfxMax1:.2f}, limited by observation window {dfxMax2:.2f}.')
         # dfx = dfy = min(dfx, dfy) # uncomment to make FU a squared image!
         
         oversampling = 1.5  # oversampling factor

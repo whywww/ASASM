@@ -7,7 +7,7 @@ from PIL import Image
 
 def draw_ellipse(image, center, axes):
 
-    thickness = 4
+    thickness = 2
     image = np.repeat(np.array(image)[..., None], 3, axis=-1)
     image /= image.max()
     image = (image * 255).astype(np.uint8)
@@ -54,3 +54,15 @@ def image_err(img_hat, img_ref):
     nom = np.sum(np.square(img_hat - img_ref))
     denom = np.sum(np.square(img_ref))
     return nom / denom
+
+
+def remove_linear_phase(phi, thetaX, thetaY, s, t, k):
+
+    linear_phiX = -np.sin(thetaX / 180 * np.pi) * k
+    linear_phiY = -np.sin(thetaY / 180 * np.pi) * k
+
+    ss, tt = np.meshgrid(s, t, indexing='xy')
+
+    phi_new = phi - ss * linear_phiX - tt * linear_phiY
+
+    return phi_new % (2 * np.pi)
