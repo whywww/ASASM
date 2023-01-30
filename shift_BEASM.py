@@ -1,6 +1,5 @@
 import numpy as np
 import finufft
-from utils import save_image
 
 
 class BEASM1d():
@@ -187,16 +186,16 @@ class shift_BEASM2d:
         dfy = (fy_ue - fy_le) / self.Lfy
 
         # the limit where all frequencies exceed [-fftmaxX, fftmaxX) and [-fftmaxY, fftmaxY)
-        s0_lim1 = z * wvls / np.sqrt(4*pitchx**2-wvls**2) + Lx
-        s0_lim2 = z * wvls / np.sqrt(4*pitchx**2-wvls**2) - Lx
-        s0_lim = max(abs(s0_lim1), abs(s0_lim2))
-        thetaX_max = np.arctan2(s0_lim, z) * 180 / np.pi
-        t0_lim1 = z * wvls / np.sqrt(4*pitchy**2-wvls**2) + Ly
-        t0_lim2 = z * wvls / np.sqrt(4*pitchy**2-wvls**2) - Ly
-        t0_lim = max(abs(t0_lim1), abs(t0_lim2))
-        thetaY_max = np.arctan2(t0_lim, z) * 180 / np.pi
-        print(f"The oblique angle should not exceed ({thetaX_max:.1f}, {thetaY_max:.1f}) degrees!")
-        assert dfx > 0 and dfy > 0
+        # s0_lim1 = z * wvls / np.sqrt(4*pitchx**2-wvls**2) + Lx
+        # s0_lim2 = z * wvls / np.sqrt(4*pitchx**2-wvls**2) - Lx
+        # s0_lim = max(abs(s0_lim1), abs(s0_lim2))
+        # thetaX_max = np.arctan2(s0_lim, z) * 180 / np.pi
+        # t0_lim1 = z * wvls / np.sqrt(4*pitchy**2-wvls**2) + Ly
+        # t0_lim2 = z * wvls / np.sqrt(4*pitchy**2-wvls**2) - Ly
+        # t0_lim = max(abs(t0_lim1), abs(t0_lim2))
+        # thetaY_max = np.arctan2(t0_lim, z) * 180 / np.pi
+        # print(f"The oblique angle should not exceed ({thetaX_max:.1f}, {thetaY_max:.1f}) degrees!")
+        assert dfx > 0 and dfy > 0, "The oblique angle is too large."
 
         fx = np.linspace(fx_le, fx_ue - dfx, self.Lfx, dtype=dtype)
         fy = np.linspace(fy_le, fy_ue - dfy, self.Lfy, dtype=dtype)
@@ -219,7 +218,7 @@ class shift_BEASM2d:
         print(f'frequency sampling number = {self.Lfx, self.Lfy}')
 
 
-    def __call__(self, E0, save_path=None):
+    def __call__(self, E0):
         
         iflag = -1
         eps = 1e-12
@@ -234,7 +233,4 @@ class shift_BEASM2d:
 
         Eout /= np.max(np.abs(Eout))
 
-        if save_path is not None:
-            save_image(abs(Fu.reshape(self.Lfy, self.Lfx)), f'{save_path}-FU.png')
-
-        return Eout
+        return Eout, abs(Fu.reshape(self.Lfy, self.Lfx))

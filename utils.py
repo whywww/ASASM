@@ -12,37 +12,34 @@ def draw_ellipse(image, center, axes):
     image /= image.max()
     image = (image * 255).astype(np.uint8)
     # color = (215, 164, 0)  # BGR
-    color = (237, 228, 86)  # light yellow RGB
-    # color = (102, 145, 59)  # deep green RGB
+    # color = (237, 228, 86)  # light yellow RGB
+    color = (102, 145, 59)  # deep green RGB
     
     image = cv2.ellipse(image, center, axes, 0., 0., 360., color, thickness=thickness)
     
     return image
 
 
-def draw_bandwidth(spectrum, fx, fy, bandwidths, save_path):
+def draw_bandwidth(spectrum, fx, fy, bandwidth, save_path):
     dfx = fx[-1] - fx[-2]
     dfy = fy[-1] - fy[-2]
     lx = len(fx)
     ly = len(fy)
-    rx = int(bandwidths[0] / 2 / dfx)  # in pixel
-    ry = int(bandwidths[1] / 2 / dfy)  # in pixel
+    rx = int(bandwidth / 2 / dfx)  # in pixel
+    ry = int(bandwidth / 2 / dfy)  # in pixel
 
     circled_spectrum = draw_ellipse(abs(spectrum).cpu(), (lx//2, ly//2), (rx, ry))
     save_image(circled_spectrum, save_path)
 
 
-def compute_bandwidth(is_plane_wave, D, wvls, pitchx, pitchy, l1=None, s=5):
+def effective_bandwidth(D, wvls, is_plane_wave=False, zf=None, exps=1.5):
     if is_plane_wave:
-        bandwidth = 129.3 * s / np.pi / D
+        bandwidth = 129.3 * exps / np.pi / D
     else:
-        assert l1 is not None, "Wave origin should be provided!"
-        bandwidth = s * D / wvls / l1  # physical
+        assert zf is not None, "Wave origin should be provided!"
+        bandwidth = exps * D / wvls / zf
 
-    bandwidthX = min(1 / pitchx, bandwidth)
-    bandwidthY = min(1 / pitchy, bandwidth)
-
-    return bandwidthX, bandwidthY
+    return bandwidth
 
 
 def save_image(image, save_path):
@@ -66,3 +63,35 @@ def remove_linear_phase(phi, thetaX, thetaY, s, t, k):
     phi_new = phi - ss * linear_phiX - tt * linear_phiY
 
     return phi_new % (2 * np.pi)
+
+
+def get_spherical_wave(k, x0, y0, to_xx, to_yy, distance):
+    ''' 
+    Get the phase shift of the spherical wave from a single point source 
+    
+    :param x0, y0: spatial coordinate of the source point
+    :param to_xx, to_yy: coordinate grid at the destination plane
+    :param distance: scalar tensor, travel distance
+    :return: the spherical wave at destination
+    '''
+
+    radius = np.sqrt(distance**2 + (to_xx - x0)**2 + (to_yy - y0)**2)
+    phase = k * radius
+
+    amplitude = 1 / radius
+    return amplitude * np.exp(1j * phase)
+
+
+def get_plane_wave(k, x0, y0, to_xx, to_yy, distance):
+
+    vec = np.array([-x0, -y0, distance])
+    kx, ky, kz = vec / np.sqrt(np.dot(vec, vec))
+    phase = k * (kx * to_xx + ky * to_yy + kz)
+
+    return np.exp(1j * phase)
+
+
+def lens_transfer(k, f, to_xx, to_yy):
+
+    phase = k/2 * (-1/f) * (to_xx**2 + to_yy**2)
+    return np.exp(1j * phase)
