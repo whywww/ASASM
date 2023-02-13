@@ -55,8 +55,7 @@ def midft(in_matrix, x, y, fx, fy):
 
 
 class AdpativeSamplingASM():
-    def __init__(self, thetaX, thetaY, z, xvec, yvec, svec, tvec, zf,
-                wavelength, effective_bandwidth, device, crop_bandwidth=True):
+    def __init__(self, Uin, xvec, yvec, z, device):
         '''
         :param xvec, yvec: vectors of source coordinates
         :param wavelengths: wavelengths
@@ -68,33 +67,31 @@ class AdpativeSamplingASM():
         complex_dtype = torch.complex128
         eps = torch.tensor(1e-9, device=device)
 
+        xivec, etavec = torch.as_tensor(Uin.xi, device=device), torch.as_tensor(Uin.eta, device=device)
         xvec, yvec = torch.as_tensor(xvec, device=device), torch.as_tensor(yvec, device=device)
-        svec, tvec = torch.as_tensor(svec, device=device), torch.as_tensor(tvec, device=device)
         z = torch.as_tensor(z, device=device)
-        wavelength = torch.as_tensor(wavelength, device=device)
-        thetaX = torch.as_tensor(thetaX, device=device, dtype=dtype)
-        thetaY = torch.as_tensor(thetaY, device=device, dtype=dtype)
+        wavelength = torch.as_tensor(Uin.wvls, device=device)
+        # thetaX = torch.as_tensor(thetaX, device=device, dtype=dtype)
+        # thetaY = torch.as_tensor(thetaY, device=device, dtype=dtype)
 
         # maximum wavelength
         n = 1
         k = 2 * math.pi / wavelength * n
 
         # bandwidth of aperture
-        pitchx = xvec[-1] - xvec[-2]
-        pitchy = yvec[-1] - yvec[-2]
-        fftmax_X = 1 / (2 * pitchx)
-        fftmax_Y = 1 / (2 * pitchy)
-        if crop_bandwidth:
-            Lfx = min(fftmax_X * 2, effective_bandwidth)
-            Lfy = min(fftmax_Y * 2, effective_bandwidth)
-        else:
-            Lfx = fftmax_X * 2
-            Lfy = fftmax_Y * 2
+        # pitchx = xvec[-1] - xvec[-2]
+        # pitchy = yvec[-1] - yvec[-2]
+        # fftmax_X = 1 / (2 * pitchx)
+        # fftmax_Y = 1 / (2 * pitchy)
+        # Lfx = fftmax_X * 2
+        # Lfy = fftmax_Y * 2
+        Lfx = Uin.fb 
+        Lfy = Uin.fb 
 
         # off-axis offset
-        s0, t0 = svec[len(svec) // 2], tvec[len(tvec) // 2]
-        offx = -torch.sin(thetaX / 180 * math.pi) / wavelength
-        offy = -torch.sin(thetaY / 180 * math.pi) / wavelength
+        xc, yc = xvec[len(xvec) // 2], yvec[len(yvec) // 2]
+        offx = torch.as_tensor(Uin.fc, device=device)
+        offy = torch.as_tensor(Uin.fc, device=device)
 
         # shifted frequencies
         fxmax = Lfx / 2 + abs(offx)
@@ -110,34 +107,33 @@ class AdpativeSamplingASM():
         fxmax = torch.clamp(fxmax, -1 / wavelength, 1 / wavelength)  
         fymax = torch.clamp(fymax, -1 / wavelength, 1 / wavelength)
 
-        # maximum sampling interval limited by TF & Spectrum
+        # maximum sampling interval limited by TF & Spectrum (Eq. S25)
         denom = max(1 - (wavelength * fxmax)**2 - (wavelength * fymax) ** 2, eps)
-        # tau_x = abs(2 * wavelength * fxmax * (z / torch.sqrt(denom) - zf) - 2 * abs(s0))
-        # tau_y = abs(2 * wavelength * fymax * (z / torch.sqrt(denom) - zf) - 2 * abs(t0))
-        tau_x = 2 * abs(wavelength * (z * fxmax / torch.sqrt(denom) - abs(zf) * fftmax_X) - abs(s0))
-        tau_y = 2 * abs(wavelength * (z * fymax / torch.sqrt(denom) - abs(zf) * fftmax_Y) - abs(t0))
+        # tau_u = 2 * abs(zf * wavelength * Lfx / 2)
+        # tau_H = 2 * abs(-wavelength * z / torch.sqrt(denom) * fxmax + s0)
+        # tau_x = tau_y = max(tau_u, tau_H)
+        tau_x = 2 * abs(Lfx / 2 * wavelength * (Uin.zf - z / torch.sqrt(denom))) + 2 * abs(-z * wavelength * offx / torch.sqrt(denom) + xc)
+        tau_y = 2 * abs(Lfy / 2 * wavelength * (Uin.zf - z / torch.sqrt(denom))) + 2 * abs(-z * wavelength * offy / torch.sqrt(denom) + yc)
         dfxMax1 = 1 / tau_x
         dfyMax1 = 1 / tau_y
-        
 
         # maximum sampling interval limited by observation plane
-        dfxMax2 = 1 / 2 / (svec.max() - svec.min())
-        dfyMax2 = 1 / 2 / (tvec.max() - tvec.min())
+        dfxMax2 = 1 / 2 / (xvec.max() - xvec.min())
+        dfyMax2 = 1 / 2 / (yvec.max() - yvec.min())
 
         # minimum requirements of sampling interval in k space
         dfx = min(dfxMax2, dfxMax1)
         dfy = min(dfyMax2, dfyMax1)
-        print(f'Sampling interval limited by UH: {dfxMax1:.2f}, limited by observation window {dfxMax2:.2f}.')
+        print(f'Sampling interval limited by UH: {dfxMax1 <= dfxMax2}.')
         
-        oversampling = 1.  # oversampling factor
-        LRfx = math.ceil(Lfx / dfx * oversampling)
-        LRfy =  math.ceil(Lfy / dfy * oversampling)
-        # LRfx = LRfy = len(xvec)
+        LRfx = math.ceil(Lfx / dfx * Uin.s)
+        LRfy = math.ceil(Lfy / dfy * Uin.s)
+        # LRfx = LRfy = 2 * len(Uin.xi)
         
         dfx2 = Lfx / LRfx
         dfy2 = Lfy / LRfy
 
-        print(f'frequency sampling number = {LRfx, LRfy}.')
+        print(f'frequency sampling number = {LRfx, LRfy}, bandwidth = {Lfx:.2f}.')
         # print(f'using bandwidth cropping saves ({int((fmax_fftX*2-effective_bandwidth)/dfx2)}, {int((fmax_fftY*2-effective_bandwidth)/dfy2)}) freq samplings.')
         
         # spatial frequency coordinates
@@ -148,22 +144,22 @@ class AdpativeSamplingASM():
         fxx, fyy = torch.meshgrid(fx_shift, fy_shift, indexing='xy')
         # self.H = torch.exp(1j * k * z * torch.sqrt(1 - (wavelength * fxx) ** 2 - (wavelength * fyy) ** 2))
         # shifted H
-        self.H = torch.exp(1j * k * (wavelength * fxx * s0 + wavelength * fyy * t0 
+        self.H = torch.exp(1j * k * (wavelength * fxx * xc + wavelength * fyy * yc 
                         + z * torch.sqrt(1 - (fxx * wavelength)**2 - (fyy * wavelength)**2)))
         
-        self.x = xvec.to(dtype=complex_dtype)
-        self.y = yvec.to(dtype=complex_dtype)
-        self.s = svec.to(dtype=complex_dtype) - s0  # shift the observation window back to origin
-        self.t = tvec.to(dtype=complex_dtype) - t0
+        self.xi = xivec.to(dtype = complex_dtype)
+        self.eta = etavec.to(dtype = complex_dtype)
+        self.x = xvec.to(dtype=complex_dtype) - xc  # shift the observation window back to origin
+        self.y = yvec.to(dtype=complex_dtype) - yc
         self.offx, self.offy = offx, offy
         self.device = device
-        self.mask = torch.where(abs(fxx-offx)**2 / (Lfx / 2)**2 + abs(fyy-offy)**2 / (Lfy / 2)**2 <= 1, 1., 0.)
+        # self.mask = torch.where(abs(fxx-offx)**2 / (Lfx / 2)**2 + abs(fyy-offy)**2 / (Lfy / 2)**2 <= 1, 1., 0.)
         self.fx = fx_shift
         self.fy = fy_shift
-        self.eB = Lfx
+        self.fb = Uin.fb
 
 
-    def __call__(self, E0, decomposed=False, save_path=None):
+    def __call__(self, E0, compensate=True, save_path=None):
         '''
         :param E0: input field
         :param z: propagation distance
@@ -177,17 +173,20 @@ class AdpativeSamplingASM():
 
         fx = self.fx.unsqueeze(0)
         fy = self.fy.unsqueeze(0)
-        if decomposed:  # the oblique wave is removed beforehand
-            Fu = mdft(E0, self.x, self.y, fx - self.offx, fy - self.offy)
-        else:
-            Fu = mdft(E0, self.x, self.y, fx, fy)
+
+        Fu = mdft(E0, self.xi, self.eta, fx - self.offx, fy - self.offy)
+        # Fu = mdft(E0, self.xi, self.eta, fx, fy)  # uncomment this to get the correct uncompensated result
         
-        # visualize the eb region
         if save_path is not None:
-            draw_bandwidth(Fu[0], self.fx, self.fy, self.eB, f'{save_path}-EB.png')
-        
-        # Fu *= self.mask
-        Eout = midft(Fu * self.H, self.s, self.t, fx, fy)
+            # save_image(torch.angle(self.H), f'{save_path}-H.png')
+            # save_image(torch.angle(Fu * self.H)[0], f'{save_path}-FuH.png')
+            # save_image(torch.angle(Fu)[0], f'{save_path}-Fu.png')
+            if compensate:
+                draw_bandwidth(Fu[0], self.fx, self.fy, self.offx, self.fb, f'{save_path}-Fb.png')
+            else:
+                draw_bandwidth(Fu[0], self.fx - self.offx, self.fy - self.offy, self.offx, self.fb, f'{save_path}-Fb.png')
+
+        Eout = midft(Fu * self.H, self.x, self.y, fx, fy)
         Eout /= abs(Eout).max()
 
         return Eout[0].cpu().numpy(), abs(Fu[0]).cpu().numpy()

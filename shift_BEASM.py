@@ -1,133 +1,126 @@
 import numpy as np
 import finufft
+from utils import save_image
 
 
-class BEASM1d():
-    def __init__(self, n, pitch, z, wvls) -> None:
-        '''
-        :param n: number of samples in source spatial domain
-        :param pitch: sampling pitch in source spatial domain
-        :param z: propagation distance
-        :param wvls: wavelengths
+# class BEASM1d():
+#     def __init__(self, n, pitch, z, wvls) -> None:
+#         '''
+#         :param n: number of samples in source spatial domain
+#         :param pitch: sampling pitch in source spatial domain
+#         :param z: propagation distance
+#         :param wvls: wavelengths
 
-        '''
+#         '''
 
-        N = n * 2  # padding
-        l = N * pitch
-        k = 2 * np.pi / wvls
+#         N = n * 2  # padding
+#         l = N * pitch
+#         k = 2 * np.pi / wvls
 
-        # the source points
-        self.x = np.linspace(-l / 2, l / 2 - pitch, N)
+#         # the source points
+#         self.x = np.linspace(-l / 2, l / 2 - pitch, N)
 
-        # the target points
-        self.s = np.linspace(-1 / 2 / pitch, 1 / 2 / pitch - 1 / l, N)
+#         # the target points
+#         self.s = np.linspace(-1 / 2 / pitch, 1 / 2 / pitch - 1 / l, N)
 
-        K = N / 2 / np.max(np.abs(self.s))
-        fcn = 1 / 2 * np.sqrt(N / wvls / z)  # f_extend
-        ss = fcn / np.max(np.abs(self.s))
-        zc = N * pitch**2 / wvls
-        if z < zc:
-            fxn = self.s
-        else:
-            fxn = self.s * (ss - 0.0)
+#         K = N / 2 / np.max(np.abs(self.s))
+#         fcn = 1 / 2 * np.sqrt(N / wvls / z)  # f_extend
+#         ss = fcn / np.max(np.abs(self.s))
+#         zc = N * pitch**2 / wvls
+#         if z < zc:
+#             fxn = self.s
+#         else:
+#             fxn = self.s * (ss - 0.0)
         
-        self.H = np.exp(1j * k * (z * np.sqrt(1 - (fxn * wvls)**2)))
-        self.fx = fxn * K
+#         self.H = np.exp(1j * k * (z * np.sqrt(1 - (fxn * wvls)**2)))
+#         self.fx = fxn * K
 
 
-    def __call__(self, c):
+#     def __call__(self, c):
         
-        iflag = -1
-        eps = 1e-12
+#         iflag = -1
+#         eps = 1e-12
 
-        t_asmNUFT = finufft.nufft1d3(self.x / np.max(np.abs(self.x)) * np.pi, c, self.fx, isign=iflag, eps=eps)
-        t_3 = finufft.nufft1d3(self.x / (np.max(np.abs(self.x))) * np.pi, self.H * t_asmNUFT, self.fx, isign=-iflag, eps=eps)
+#         t_asmNUFT = finufft.nufft1d3(self.x / np.max(np.abs(self.x)) * np.pi, c, self.fx, isign=iflag, eps=eps)
+#         t_3 = finufft.nufft1d3(self.x / (np.max(np.abs(self.x))) * np.pi, self.H * t_asmNUFT, self.fx, isign=-iflag, eps=eps)
 
-        t_3 = t_3 / np.max(np.abs(t_3))
-        N = len(self.x)
-        t_3 = t_3[N//2 - N//4 + 1 : N // 2 + N // 4 + 1]
+#         t_3 = t_3 / np.max(np.abs(t_3))
+#         N = len(self.x)
+#         t_3 = t_3[N//2 - N//4 + 1 : N // 2 + N // 4 + 1]
 
-        # phase_asm_ex = np.angle(t_3)
-        amplitude_asm_ex = np.abs(t_3)
+#         # phase_asm_ex = np.angle(t_3)
+#         amplitude_asm_ex = np.abs(t_3)
 
-        return amplitude_asm_ex
+#         return amplitude_asm_ex
 
 
 
-class BEASM2d():
-    def __init__(self, z, xvec, yvec, wvls, device) -> None:
-        '''
-        :param xvec, yvec: source and destination window grid
-        :param z: propagation distance
-        :param wvls: wavelengths
-        '''
+# class BEASM2d():
+#     def __init__(self, z, xvec, yvec, wvls, device) -> None:
+#         '''
+#         :param xvec, yvec: source and destination window grid
+#         :param z: propagation distance
+#         :param wvls: wavelengths
+#         '''
 
-        dtype = np.double
-        device = 'cpu'
-        # xvec, yvec = xvec.to(device).numpy(), yvec.to(device).numpy()
-        # wvls = wvls.to(device).numpy().flatten()
-        # z = z.to(device).numpy()
+#         dtype = np.double
 
-        k = 2 * np.pi / wvls
-        N = len(xvec)
-        pitch = xvec[-1] - xvec[-2]
-        l = N * pitch
+#         k = 2 * np.pi / wvls
+#         N = len(xvec)
+#         pitch = xvec[-1] - xvec[-2]
+#         l = N * pitch
 
-        # the source & target points (same window)
-        xx, yy = np.meshgrid(xvec, yvec, indexing='ij')
-        self.x = xx.flatten() / np.max(np.abs(xx)) * np.pi
-        self.y = yy.flatten() / np.max(np.abs(yy)) * np.pi
+#         # the source & target points (same window)
+#         xx, yy = np.meshgrid(xvec, yvec, indexing='ij')
+#         self.x = xx.flatten() / np.max(np.abs(xx)) * np.pi
+#         self.y = yy.flatten() / np.max(np.abs(yy)) * np.pi
 
-        # the frequency points
-        fx = np.linspace(-1 / 2 / pitch, 1 / 2 / pitch - 1 / l, N, dtype=dtype)
-        fy = np.linspace(-1 / 2 / pitch, 1 / 2 / pitch - 1 / l, N, dtype=dtype)
-        fxx, fyy = np.meshgrid(fx, fy, indexing='ij')
-        self.fx = fxx.flatten()
-        self.fy = fyy.flatten()
+#         # the frequency points
+#         fx = np.linspace(-1 / 2 / pitch, 1 / 2 / pitch - 1 / l, N, dtype=dtype)
+#         fy = np.linspace(-1 / 2 / pitch, 1 / 2 / pitch - 1 / l, N, dtype=dtype)
+#         fxx, fyy = np.meshgrid(fx, fy, indexing='ij')
+#         self.fx = fxx.flatten()
+#         self.fy = fyy.flatten()
 
-        K1 = N / 2 / np.max(np.abs(fx))
-        K2 = N / 2 / np.max(np.abs(fy))
-        fcn = 1 / 2 * np.sqrt(N / wvls / z)  # f_e/xtend
-        # fcn = 1 / 2 / pitch  # use the full band
+#         K1 = N / 2 / np.max(np.abs(fx))
+#         K2 = N / 2 / np.max(np.abs(fy))
+#         fcn = 1 / 2 * np.sqrt(N / wvls / z)  # f_extend
+#         # fcn = 1 / 2 / pitch  # use the full band
 
-        fx_ = fcn / np.max(np.abs(fx))
-        fy_ = fcn / np.max(np.abs(fy))
-        zc = N * pitch**2 / wvls
-        if z < zc:
-            fxn = self.fx
-            fyn = self.fy
-        else:
-            fxn = self.fx * (fx_ - 0.0)
-            fyn = self.fy * (fy_ - 0.0)
+#         fx_ = fcn / np.max(np.abs(fx))
+#         fy_ = fcn / np.max(np.abs(fy))
+#         zc = N * pitch**2 / wvls
+#         if z < zc:
+#             fxn = self.fx
+#             fyn = self.fy
+#         else:
+#             fxn = self.fx * (fx_ - 0.0)
+#             fyn = self.fy * (fy_ - 0.0)
         
-        self.H = np.exp(1j * k * (z * np.sqrt(1 - (fxn * wvls)**2 - (fyn * wvls)**2)))
-        self.fx = fxn * K1
-        self.fy = fyn * K2
-        print(f'max freq: {self.fx.max():.2f}, interval: {self.fx[-1]-self.fx[-2]:.2f}, length: {N,N}')
+#         self.H = np.exp(1j * k * (z * np.sqrt(1 - (fxn * wvls)**2 - (fyn * wvls)**2)))
+#         self.fx = fxn * K1
+#         self.fy = fyn * K2
+#         print(f'max freq: {self.fx.max():.2f}, interval: {self.fx[-1]-self.fx[-2]:.2f}, length: {N,N}')
 
 
-    def __call__(self, E0):
+#     def __call__(self, E0):
         
-        iflag = -1
-        eps = 1e-12
-        E0 = E0.astype(np.complex128)
+#         iflag = -1
+#         eps = 1e-12
+#         E0 = E0.astype(np.complex128)
 
-        shape = E0.shape
-        E0 = E0.flatten()
-        t_asmNUFT = finufft.nufft2d3(self.x, self.y, E0, self.fx, self.fy, isign=iflag, eps=eps)
-        t_3 = finufft.nufft2d3(self.x, self.y, self.H * t_asmNUFT, self.fx, self.fy, isign=-iflag, eps=eps).reshape(shape)
+#         shape = E0.shape
+#         E0 = E0.flatten()
+#         t_asmNUFT = finufft.nufft2d3(self.x, self.y, E0, self.fx, self.fy, isign=iflag, eps=eps)
+#         t_3 = finufft.nufft2d3(self.x, self.y, self.H * t_asmNUFT, self.fx, self.fy, isign=-iflag, eps=eps).reshape(shape)
 
-        t_3 = t_3 / np.max(np.abs(t_3))
+#         t_3 = t_3 / np.max(np.abs(t_3))
 
-        return t_3
-
-    
-# TODO:
-# 1. torch+cuda implementation
+#         return t_3
 
 
 class shift_BEASM2d:
-    def __init__(self, st_offset, z, xvec, yvec, svec, tvec, wvls) -> None:
+    def __init__(self, Uin, xvec, yvec, z, Nf=None) -> None:
         '''
         :param x0, y0: destination window shift 
         :param xvec, yvec: source and destination window grid
@@ -137,45 +130,47 @@ class shift_BEASM2d:
 
         dtype = np.double
 
+        wvls = Uin.wvls
         k = 2 * np.pi / wvls
-        Nx, Ny = len(xvec), len(yvec)  # no padding
-        self.Mx, self.My = len(svec), len(tvec)
-        pad = 1
+        Nx, Ny = len(Uin.xi), len(Uin.eta)  # no padding
         self.Nx, self.Ny = Nx, Ny
-        pitchx = xvec[-1] - xvec[-2]
-        pitchy = yvec[-1] - yvec[-2]
+        self.Mx, self.My = len(xvec), len(yvec)
+        pitchx = Uin.xi[-1] - Uin.xi[-2]
+        pitchy = Uin.eta[-1] - Uin.eta[-2]
         fftmaxX = 1 / 2 / pitchx
         fftmaxY = 1 / 2 / pitchy
 
         # the source points
-        s0, t0 = st_offset
-        xx, yy = np.meshgrid(xvec, yvec, indexing='xy')
-        self.x = xx.flatten()
-        self.y = yy.flatten()
-        self.xmax, self.ymax = abs(xvec).max(), abs(yvec).max()
+        self.xi = Uin.xi_.flatten()
+        self.eta = Uin.eta_.flatten()
+        self.xmax, self.ymax = abs(Uin.xi).max(), abs(Uin.eta).max()
 
         # the target points
-        ss, tt = np.meshgrid(svec - s0, tvec - t0, indexing='xy')
-        self.s, self.t = ss.flatten(), tt.flatten()
-        # self.smax, self.tmax = (svec).max(), (tvec).max()
+        xc, yc = xvec[len(xvec) // 2], yvec[len(yvec) // 2]
+        xx, yy = np.meshgrid(xvec - xc, yvec - yc, indexing='xy')
+        self.x, self.y = xx.flatten(), yy.flatten()
 
         # the frequency points
-        self.Lfx = Nx * pad
-        self.Lfy = Ny * pad
+        if Nf is None:
+            pad = 2
+            self.Lfx = Nx * pad
+            self.Lfy = Ny * pad
+        else:
+            self.Lfx = self.Lfy = Nf
         Rx = np.sqrt(wvls * z / Nx / pitchx**2)
         Ry = np.sqrt(wvls * z / Ny / pitchy**2)
         # Rx = Ry = 1  # this is shift-BLASM
         Lx = Rx * Nx * pitchx  # maximum half width of observation window after band extending
         Ly = Ry * Ny * pitchy
-        fx_limP = 1 / wvls / np.sqrt((z / (s0 + Lx))**2 + 1)
-        fx_limN = 1 / wvls / np.sqrt((z / (s0 - Lx))**2 + 1)
-        fy_limP = 1 / wvls / np.sqrt((z / (t0 + Ly))**2 + 1)
-        fy_limN = 1 / wvls / np.sqrt((z / (t0 - Ly))**2 + 1)
+        fx_limP = 1 / wvls / np.sqrt((z / (xc + Lx))**2 + 1)
+        fx_limN = 1 / wvls / np.sqrt((z / (xc - Lx))**2 + 1)
+        fy_limP = 1 / wvls / np.sqrt((z / (yc + Ly))**2 + 1)
+        fy_limN = 1 / wvls / np.sqrt((z / (yc - Ly))**2 + 1)
 
-        fx_ue = fx_limP if s0 > -Lx else -fx_limP
-        fx_le = fx_limN if s0 >= Lx else -fx_limN
-        fy_ue = fy_limP if t0 > -Ly else -fy_limP
-        fy_le = fy_limN if t0 >= Ly else -fy_limN
+        fx_ue = fx_limP if xc > -Lx else -fx_limP
+        fx_le = fx_limN if xc >= Lx else -fx_limN
+        fy_ue = fy_limP if yc > -Ly else -fy_limP
+        fy_le = fy_limN if yc >= Ly else -fy_limN
 
         fx_ue = np.clip(fx_ue, -fftmaxX, fftmaxX)
         fx_le = np.clip(fx_le, -fftmaxX, fftmaxX)
@@ -185,24 +180,11 @@ class shift_BEASM2d:
         dfx = (fx_ue - fx_le) / self.Lfx
         dfy = (fy_ue - fy_le) / self.Lfy
 
-        # the limit where all frequencies exceed [-fftmaxX, fftmaxX) and [-fftmaxY, fftmaxY)
-        # s0_lim1 = z * wvls / np.sqrt(4*pitchx**2-wvls**2) + Lx
-        # s0_lim2 = z * wvls / np.sqrt(4*pitchx**2-wvls**2) - Lx
-        # s0_lim = max(abs(s0_lim1), abs(s0_lim2))
-        # thetaX_max = np.arctan2(s0_lim, z) * 180 / np.pi
-        # t0_lim1 = z * wvls / np.sqrt(4*pitchy**2-wvls**2) + Ly
-        # t0_lim2 = z * wvls / np.sqrt(4*pitchy**2-wvls**2) - Ly
-        # t0_lim = max(abs(t0_lim1), abs(t0_lim2))
-        # thetaY_max = np.arctan2(t0_lim, z) * 180 / np.pi
-        # print(f"The oblique angle should not exceed ({thetaX_max:.1f}, {thetaY_max:.1f}) degrees!")
         assert dfx > 0 and dfy > 0, "The oblique angle is too large."
 
         fx = np.linspace(fx_le, fx_ue - dfx, self.Lfx, dtype=dtype)
         fy = np.linspace(fy_le, fy_ue - dfy, self.Lfy, dtype=dtype)
         fxx, fyy = np.meshgrid(fx, fy, indexing='xy')
-
-        # K1 = Nx / 2 / fftmaxX
-        # K2 = Ny / 2 / fftmaxY
 
         self.fxmax = fx.max()
         self.fymax = fy.max()
@@ -210,27 +192,35 @@ class shift_BEASM2d:
         self.fy = fyy.flatten() 
 
         fxx, fyy = fxx.astype(np.complex128), fyy.astype(np.complex128)
-        self.H = np.exp(1j * k * (wvls * fxx * s0 + wvls * fyy * t0 
+        self.H = np.exp(1j * k * (wvls * fxx * xc + wvls * fyy * yc 
                         + z * np.sqrt(1 - (fxx * wvls)**2 - (fyy * wvls)**2)))
         # self.H = np.exp(1j * k * z * np.sqrt(1 - (fxx * wvls)**2 - (fyy * wvls)**2))
         self.H = self.H.flatten()
         
-        print(f'frequency sampling number = {self.Lfx, self.Lfy}')
+        print(f'frequency sampling number = {self.Lfx, self.Lfy}, bandwidth = {fx_ue - fx_le:.2f}')
+        # self.B = fx_ue - fx_le
 
 
-    def __call__(self, E0):
+    def __call__(self, E0, save_path=None):
         
         iflag = -1
         eps = 1e-12
         E0 = E0.astype(np.complex128)
         E0 = E0.flatten()
         
-        Fu = finufft.nufft2d3(self.x / self.xmax * np.pi, self.y / self.ymax * np.pi, E0, 
+        Fu = finufft.nufft2d3(self.xi / self.xmax * np.pi, self.eta / self.ymax * np.pi, E0, 
                             self.fx * self.xmax * 2, self.fy * self.ymax * 2, isign=iflag, eps=eps)
         Eout = finufft.nufft2d3(self.fx / self.fxmax * np.pi, self.fy / self.fymax * np.pi, self.H * Fu, 
-                            self.s * self.fxmax * 2, self.t * self.fymax * 2, 
+                            self.x * self.fxmax * 2, self.y * self.fymax * 2, 
                             isign=-iflag, eps=eps).reshape(self.My, self.Mx)
 
         Eout /= np.max(np.abs(Eout))
+
+        if save_path is not None:
+            H1 = self.H.reshape(self.Lfy, self.Lfx)
+            Fu1 = Fu.reshape(self.Lfy, self.Lfx)
+            save_image(np.angle(H1), f'{save_path}-H.png')
+            save_image(np.angle(Fu1 * H1), f'{save_path}-FuH.png')
+            save_image(np.angle(Fu1), f'{save_path}-Fu.png')
 
         return Eout, abs(Fu.reshape(self.Lfy, self.Lfx))
