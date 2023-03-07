@@ -198,7 +198,6 @@ class shift_BEASM2d:
         self.H = self.H.flatten()
         
         print(f'frequency sampling number = {self.Lfx, self.Lfy}, bandwidth = {fx_ue - fx_le:.2f}')
-        # self.B = fx_ue - fx_le
 
 
     def __call__(self, E0, save_path=None):

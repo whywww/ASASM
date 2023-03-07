@@ -3,7 +3,6 @@ python -m debugpy --listen 0.0.0.0:5678 --wait-for-client main.py
 '''
 
 import numpy as np
-import matplotlib.pyplot as plt
 import time
 from utils import save_image, remove_linear_phase, snr
 from tqdm import tqdm
@@ -21,9 +20,9 @@ z = zf  # aperture-sensor distance
 r = f / 16 / 2  # radius of aperture
 thetaX = thetaY = 0  # incident angle
 
-s_ASASM = 2.5  # expansion factor
-s_BEASM = 1.  # expansion factor
-s_RS = 4.
+s_ASASM = 1.5  # oversampling factor
+s_BEASM = 1.5  # oversampling factor
+s_RS = 4
 compensate = True
 times = 1  # number of times to run for each method
 use_BEASM = False
@@ -31,14 +30,15 @@ use_ASASM = True
 use_RS = False
 result_folder = 'results'
 RS_folder = 'RS'
-device_RS = 'cuda:2'
-calculate_SNR = False
+device_RS = 'cuda:3'
+calculate_SNR = True
 
 # define observation window
-# Mx, My = 512, 512
-# l = r * 0.5
 Mx, My = 1024, 1024
-l = r * 0.25
+l = r * 0.25  # normal
+# Mx, My = 512, 512
+# l = r * 1. # cubic
+# l = r * 8.  # large angle
 xc = - z * np.sin(thetaX / 180 * np.pi) / np.sqrt(1 - np.sin(thetaX / 180 * np.pi)**2 - np.sin(thetaY / 180 * np.pi)**2)
 yc = - z * np.sin(thetaX / 180 * np.pi) / np.sqrt(1 - np.sin(thetaX / 180 * np.pi)**2 - np.sin(thetaY / 180 * np.pi)**2)
 
@@ -48,10 +48,10 @@ print(f'observation window diamter = {l}.')
 
 if use_ASASM:
     print('----------------- Propagating with ASASM -----------------')
-    Uin = InputField(2, wvls, thetaX, r, z0, f, zf, s_ASASM, compensate)
+    Uin = InputField("12", wvls, (thetaX, thetaY), r, z0, f, zf, s_ASASM, compensate)
 
     from ASASM import AdpativeSamplingASM
-    device = 'cpu'  # or 'cuda'
+    device = 'cpu'  # or 'cuda:0'
     prop2 = AdpativeSamplingASM(Uin, x, y, z, device)
     path = f'{result_folder}/ASASM({len(Uin.xi)},{len(prop2.fx)})-{thetaX}-{s_ASASM:.2f}'
     runtime = 0
@@ -61,12 +61,12 @@ if use_ASASM:
         end = time.time()
         runtime += end - start
     print(f'Time elapsed for ASASM: {runtime / times:.2f}')
-    save_image(abs(U2), f'{path}.png')
+    # save_image(abs(U2), f'{path}.png', cmap='gray')
     # phase = np.angle(U2) % (2*np.pi)
-    phase = remove_linear_phase(np.angle(U2), thetaX, thetaY, x, y, k) # for visualization
-    save_image(phase, f'{path}-Phi.png')
-    save_image(Fu, f'{path}-FU.png')
-    np.save(f'{path}', U2)
+    # phase = remove_linear_phase(np.angle(U2), thetaX, thetaY, x, y, k) # for visualization
+    # save_image(phase, f'{path}-Phi.png', cmap='twilight')
+    # save_image(Fu, f'{path}-FU.png', cmap='viridis')
+    # np.save(f'{path}', U2)
     if calculate_SNR:
         if glob.glob(f'{RS_folder}/RS*-{thetaX}-{s_RS:.1f}.npy') != []:
             u_GT = np.load(glob.glob(f'{RS_folder}/RS*-{thetaX}-{s_RS:.1f}.npy')[0])
@@ -75,7 +75,7 @@ if use_ASASM:
 
 if use_BEASM:
     print('-------------- Propagating with shift BEASM --------------')
-    Uin = InputField(2, wvls, thetaX, r, z0, f, zf, s_BEASM, compensate=False)
+    Uin = InputField("12", wvls, (thetaX, thetaY), r, z0, f, zf, s_BEASM, compensate=False)
 
     from shift_BEASM import shift_BEASM2d
     prop1 = shift_BEASM2d(Uin, x, y, z) #, len(prop2.fx)
@@ -87,11 +87,11 @@ if use_BEASM:
         end = time.time()
         runtime += end - start
     print(f'Time elapsed for Shift-BEASM: {runtime / times:.2f}')
-    save_image(abs(U1), f'{path}.png')
+    save_image(abs(U1), f'{path}.png', cmap='gray')
     # phase = np.angle(U1) % (2*np.pi)
     phase = remove_linear_phase(np.angle(U1), thetaX, thetaY, x, y, k) # for visualization
-    save_image(phase, f'{path}-Phi.png')
-    save_image(Fu, f'{path}-FU.png')
+    save_image(phase, f'{path}-Phi.png', cmap='twilight')
+    save_image(Fu, f'{path}-FU.png', cmap='viridis')
     np.save(f'{path}', U1)
     if calculate_SNR:
         if glob.glob(f'{RS_folder}/RS*-{thetaX}-{s_RS:.1f}.npy') != []:
@@ -101,7 +101,7 @@ if use_BEASM:
 
 if use_RS:
     print('-------------- Propagating with RS integral --------------')
-    Uin = InputField(1, wvls, thetaX, r, z0, f, zf, s_RS, compensate=False)
+    Uin = InputField("12", wvls, (thetaX, thetaY), r, z0, f, zf, s_RS, compensate=False)
 
     # from RS import RSDiffraction_INT  # cpu, super slow
     # prop = RSDiffraction_INT()
@@ -113,8 +113,8 @@ if use_RS:
     U0 = prop(Uin.E0)
     end = time.time()
     print(f'Time elapsed for RS: {end-start:.2f}')
-    save_image(abs(U0), f'{path}.png')
+    save_image(abs(U0), f'{path}.png', cmap='gray')
     # phase = np.angle(U0) % (2*np.pi)
     phase = remove_linear_phase(np.angle(U0), thetaX, thetaY, x, y, k) # for visualization
-    save_image(phase, f'{path}-Phi.png')
+    save_image(phase, f'{path}-Phi.png', cmap='twilight')
     np.save(f'{path}', U0)

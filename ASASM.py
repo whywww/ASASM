@@ -65,33 +65,26 @@ class AdpativeSamplingASM():
 
         dtype = torch.double
         complex_dtype = torch.complex128
-        eps = torch.tensor(1e-9, device=device)
 
         xivec, etavec = torch.as_tensor(Uin.xi, device=device), torch.as_tensor(Uin.eta, device=device)
         xvec, yvec = torch.as_tensor(xvec, device=device), torch.as_tensor(yvec, device=device)
         z = torch.as_tensor(z, device=device)
         wavelength = torch.as_tensor(Uin.wvls, device=device)
-        # thetaX = torch.as_tensor(thetaX, device=device, dtype=dtype)
-        # thetaY = torch.as_tensor(thetaY, device=device, dtype=dtype)
 
         # maximum wavelength
         n = 1
         k = 2 * math.pi / wavelength * n
 
         # bandwidth of aperture
-        # pitchx = xvec[-1] - xvec[-2]
-        # pitchy = yvec[-1] - yvec[-2]
-        # fftmax_X = 1 / (2 * pitchx)
-        # fftmax_Y = 1 / (2 * pitchy)
-        # Lfx = fftmax_X * 2
-        # Lfy = fftmax_Y * 2
-        Lfx = Uin.fb 
-        Lfy = Uin.fb 
+        Lfx = Uin.fbX
+        Lfy = Uin.fbY
 
         # off-axis offset
         xc, yc = xvec[len(xvec) // 2], yvec[len(yvec) // 2]
-        offx = torch.as_tensor(Uin.fc, device=device)
-        offy = torch.as_tensor(Uin.fc, device=device)
+        wx = xvec[-1] - xvec[0]
+        wy = yvec[-1] - yvec[0]
+        offx = torch.as_tensor(Uin.fcX, device=device)
+        offy = torch.as_tensor(Uin.fcY, device=device)
 
         # shifted frequencies
         fxmax = Lfx / 2 + abs(offx)
@@ -107,34 +100,87 @@ class AdpativeSamplingASM():
         fxmax = torch.clamp(fxmax, -1 / wavelength, 1 / wavelength)  
         fymax = torch.clamp(fymax, -1 / wavelength, 1 / wavelength)
 
-        # maximum sampling interval limited by TF & Spectrum (Eq. S25)
-        denom = max(1 - (wavelength * fxmax)**2 - (wavelength * fymax) ** 2, eps)
-        # tau_u = 2 * abs(zf * wavelength * Lfx / 2)
-        # tau_H = 2 * abs(-wavelength * z / torch.sqrt(denom) * fxmax + s0)
-        # tau_x = tau_y = max(tau_u, tau_H)
-        tau_x = 2 * abs(Lfx / 2 * wavelength * (Uin.zf - z / torch.sqrt(denom))) + 2 * abs(-z * wavelength * offx / torch.sqrt(denom) + xc)
-        tau_y = 2 * abs(Lfy / 2 * wavelength * (Uin.zf - z / torch.sqrt(denom))) + 2 * abs(-z * wavelength * offy / torch.sqrt(denom) + yc)
-        dfxMax1 = 1 / tau_x
-        dfyMax1 = 1 / tau_y
+        # combined phase gradient analysis
+        gx1, gy1 = self.grad_H(wavelength, z, Lfx / 2 + offx, Lfy / 2 + offy)
+        gx2, gy2 = self.grad_H(wavelength, z, -Lfx / 2 + offx, -Lfy / 2 + offy)
+        FHcx = (gx1 + gx2) / (4 * torch.pi)
+        FHcy = (gy1 + gy2) / (4 * torch.pi)
 
-        # maximum sampling interval limited by observation plane
-        dfxMax2 = 1 / 2 / (xvec.max() - xvec.min())
-        dfyMax2 = 1 / 2 / (yvec.max() - yvec.min())
+        if Uin.type == "12":
+            hx = k * Uin.zf * wavelength**2 * Lfx / 2
+            hy = k * Uin.zf * wavelength**2 * Lfy / 2
+            FUHbx = abs((hx + gx1) - (-hx + gx2)) / (2 * torch.pi)
+            FUHby = abs((hy + gy1) - (-hy + gy2)) / (2 * torch.pi)
+
+            # to verify the extrema of g+h
+            # fx =fy= torch.linspace(-Lfx / 2, Lfx / 2 , 100, device=device)
+            # ghx, ghy = self.grad_H(wavelength, z, fx+offx, fy+offy)
+            # ghx += k * Uin.zf * wavelength**2 * fx
+            # ghy += k * Uin.zf * wavelength**2 * fy
+            # FUHbx = (max(ghx) - min(ghx)) / (2 * torch.pi)
+            # FUHby = (max(ghy) - min(ghy)) / (2 * torch.pi)
+
+            deltax = self.compute_shift_of_H(FHcx, FUHbx, xc, wx)
+            deltay = self.compute_shift_of_H(FHcy, FUHby, yc, wy)
+            FUHcx_shifted = FHcx + deltax
+            FUHcy_shifted = FHcy + deltay
+            
+            tau_UHx = 2 * abs(FUHcx_shifted) + FUHbx
+            tau_UHy = 2 * abs(FUHcy_shifted) + FUHby
+            
+            # amplitude sampling
+            # tau_Uamp = Uin.D
+            # tau_UHx += tau_Uamp
+            # tau_UHy += tau_Uamp
+        else:
+            FHbx = abs(gx1 - gx2) / (2 * torch.pi)
+            FHby = abs(gy1 - gy2) / (2 * torch.pi)
+
+            deltax = self.compute_shift_of_H(FHcx, FHbx, xc, wx)
+            deltay = self.compute_shift_of_H(FHcy, FHby, yc, wy)
+            FHcx_shifted = FHcx + deltax
+            FHcy_shifted = FHcy + deltay
+
+            tau_UHx = 2 * abs(FHcx_shifted) + FHbx + Uin.D
+            tau_UHy = 2 * abs(FHcy_shifted) + FHby + Uin.D
+
+        # tau_UHx = tau_UHy = Uin.D 
+        
+        # deprecated
+        # maximum sampling interval limited by TF & Spectrum (Eq. S25)
+        # denom = max(1 - (wavelength * fxmax)**2 - (wavelength * fymax) ** 2, eps)
+        # # tau_u = 2 * abs(zf * wavelength * Lfx / 2)
+        # tau_Hx = 2 * abs(-wavelength * z / torch.sqrt(denom) * fxmax + xc)
+        # # tau_x = tau_y = max(tau_u, tau_H)
+        # if Uin.type == "12":
+        #     tau_x = 2 * abs(Lfx / 2 * wavelength * (Uin.zf - z / torch.sqrt(denom))) + 2 * abs(-z * wavelength * offx / torch.sqrt(denom) + xc)
+        #     tau_y = 2 * abs(Lfy / 2 * wavelength * (Uin.zf - z / torch.sqrt(denom))) + 2 * abs(-z * wavelength * offy / torch.sqrt(denom) + yc)
+        # else:
+        #     tau_x = tau_Hx + Uin.D
+        
+        dfxMax1 = 1 / tau_UHx
+        dfyMax1 = 1 / tau_UHy
+
+        # maximum sampling interval limited by OW
+        dfxMax2 = 1 / (2 * abs(xc - deltax) + wx)
+        dfyMax2 = 1 / (2 * abs(yc - deltay) + wy)
+
+        # maximum sampling interval limited by diffraction limit
+        dfxMax3 = 1 / (41.2 * (xvec[-1] - xvec[-2]))
+        dfyMax3 = 1 / (41.2 * (yvec[-1] - yvec[-2]))
 
         # minimum requirements of sampling interval in k space
-        dfx = min(dfxMax2, dfxMax1)
-        dfy = min(dfyMax2, dfyMax1)
+        dfx = min(dfxMax1, dfxMax2, dfxMax3)
+        dfy = min(dfyMax1, dfyMax2, dfyMax3)
         print(f'Sampling interval limited by UH: {dfxMax1 <= dfxMax2}.')
         
-        LRfx = math.ceil(Lfx / dfx * Uin.s)
-        LRfy = math.ceil(Lfy / dfy * Uin.s)
-        # LRfx = LRfy = 2 * len(Uin.xi)
+        LRfx = math.ceil(Lfx / dfx ) #* Uin.s
+        LRfy = math.ceil(Lfy / dfy ) #* Uin.s
         
         dfx2 = Lfx / LRfx
         dfy2 = Lfy / LRfy
 
         print(f'frequency sampling number = {LRfx, LRfy}, bandwidth = {Lfx:.2f}.')
-        # print(f'using bandwidth cropping saves ({int((fmax_fftX*2-effective_bandwidth)/dfx2)}, {int((fmax_fftY*2-effective_bandwidth)/dfy2)}) freq samplings.')
         
         # spatial frequency coordinates
         fx = torch.linspace(-Lfx / 2, Lfx / 2 - dfx2, LRfx, device=device, dtype=complex_dtype)
@@ -144,19 +190,22 @@ class AdpativeSamplingASM():
         fxx, fyy = torch.meshgrid(fx_shift, fy_shift, indexing='xy')
         # self.H = torch.exp(1j * k * z * torch.sqrt(1 - (wavelength * fxx) ** 2 - (wavelength * fyy) ** 2))
         # shifted H
-        self.H = torch.exp(1j * k * (wavelength * fxx * xc + wavelength * fyy * yc 
+        self.H = torch.exp(1j * k * (wavelength * fxx * deltax + wavelength * fyy * deltay 
                         + z * torch.sqrt(1 - (fxx * wavelength)**2 - (fyy * wavelength)**2)))
         
         self.xi = xivec.to(dtype = complex_dtype)
         self.eta = etavec.to(dtype = complex_dtype)
-        self.x = xvec.to(dtype=complex_dtype) - xc  # shift the observation window back to origin
-        self.y = yvec.to(dtype=complex_dtype) - yc
+        self.x = xvec.to(dtype=complex_dtype) - deltax  # shift the observation window back to origin
+        self.y = yvec.to(dtype=complex_dtype) - deltay
         self.offx, self.offy = offx, offy
         self.device = device
-        # self.mask = torch.where(abs(fxx-offx)**2 / (Lfx / 2)**2 + abs(fyy-offy)**2 / (Lfy / 2)**2 <= 1, 1., 0.)
         self.fx = fx_shift
         self.fy = fy_shift
-        self.fb = Uin.fb
+        self.fbX = Uin.fbX
+        self.fbY = Uin.fbY
+        a = torch.linspace(-1, 1, LRfx)
+        aa, bb = torch.meshgrid(a, a)
+        self.mask = torch.where(aa**2 + bb**2 <= 1, 1., 0.)
 
 
     def __call__(self, E0, compensate=True, save_path=None):
@@ -174,19 +223,55 @@ class AdpativeSamplingASM():
         fx = self.fx.unsqueeze(0)
         fy = self.fy.unsqueeze(0)
 
-        Fu = mdft(E0, self.xi, self.eta, fx - self.offx, fy - self.offy)
-        # Fu = mdft(E0, self.xi, self.eta, fx, fy)  # uncomment this to get the correct uncompensated result
+        if compensate:
+            Fu = mdft(E0, self.xi, self.eta, fx - self.offx, fy - self.offy)
+        else:
+            Fu = mdft(E0, self.xi, self.eta, fx, fy)
         
         if save_path is not None:
-            # save_image(torch.angle(self.H), f'{save_path}-H.png')
-            # save_image(torch.angle(Fu * self.H)[0], f'{save_path}-FuH.png')
-            # save_image(torch.angle(Fu)[0], f'{save_path}-Fu.png')
-            if compensate:
-                draw_bandwidth(Fu[0], self.fx, self.fy, self.offx, self.fb, f'{save_path}-Fb.png')
-            else:
-                draw_bandwidth(Fu[0], self.fx - self.offx, self.fy - self.offy, self.offx, self.fb, f'{save_path}-Fb.png')
+            # save_image(torch.angle(self.H), f'{save_path}-H.png', cmap='twilight')
+            # save_image(torch.angle(Fu * self.H)[0], f'{save_path}-FuH.png', cmap='twilight')
+            # Fu = self.mask * torch.ones_like(Fu) * torch.exp(1j * (torch.angle(Fu)))
+            # Fu = torch.abs(Fu) * torch.exp(1j * torch.zeros_like(Fu))
+            Fu = torch.abs(Fu) * torch.exp(1j * torch.angle(Fu))
+            save_image(torch.angle(Fu)[0], f'{save_path}-Fu_phi.png', cmap='twilight')
+            save_image(torch.abs(Fu)[0], f'{save_path}-Fu.png', cmap='viridis')
+            # FFu = mdft(Fu, fx - self.offx, fy - self.offy, self.xi, self.eta)
+            FFu = midft(Fu, self.xi, self.eta, fx - self.offx, fy - self.offy)
+            save_image(torch.abs(FFu)[0], f'{save_path}-FFu.png', cmap='viridis')
+            save_image(torch.angle(FFu)[0], f'{save_path}-FFu_phi.png', cmap='twilight')
+            save_image(torch.angle(E0), f'{save_path}-E0_phi.png', cmap='twilight')
+            save_image(torch.abs(E0), f'{save_path}-E0.png', cmap='viridis')
+
+            # if compensate:
+            #     draw_bandwidth(Fu[0], self.fx, self.fy, self.offx, self.offy, self.fbX, self.fbY, f'{save_path}-Fb.png')
+            # else:
+            #     draw_bandwidth(Fu[0], self.fx - self.offx, self.fy - self.offy, self.offx, self.offy, self.fbX, self.fbY, f'{save_path}-Fb.png')
 
         Eout = midft(Fu * self.H, self.x, self.y, fx, fy)
-        Eout /= abs(Eout).max()
+        # Eout /= abs(Eout).max() # we dont need to normalize using MTP.
 
         return Eout[0].cpu().numpy(), abs(Fu[0]).cpu().numpy()
+
+
+    def grad_H(self, lam, z, fx, fy):
+
+        eps = torch.tensor(1e-9, device = fx.device)
+        denom = torch.max(1 - (lam * fx)**2 - (lam * fy) ** 2, eps)
+        gradx = - z * 2 * torch.pi * lam * fx / torch.sqrt(1 - (lam * fx)**2 - (lam * fy)**2)
+        grady = - z * 2 * torch.pi * lam * fy / torch.sqrt(1 - (lam * fx)**2 - (lam * fy)**2)
+        return gradx, grady
+
+    
+    def compute_shift_of_H(self, Fc, Fb, pc, w):
+
+        if (w > -2 * Fc - 2 * pc + Fb) and (w < 2 * Fc + 2 * pc + Fb):
+            delta = pc / 2 + w / 4 - Fc / 2 - Fb / 4
+        elif (w > 2 * Fc + 2 * pc + Fb) and (w < -2 * Fc - 2 * pc + Fb):
+            delta = pc / 2 - w / 4 - Fc / 2 + Fb / 4
+        elif (w > 2 * Fc + 2 * pc + Fb) and (w > -2 * Fc - 2 * pc + Fb):
+            delta = pc
+        elif (w < 2 * Fc + 2 * pc + Fb) and (w < -2 * Fc - 2 * pc + Fb):
+            delta = -Fc
+
+        return delta

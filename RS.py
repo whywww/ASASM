@@ -63,7 +63,7 @@ class RSDiffraction_GPU():
         self.ss, self.tt = ss.to(device), tt.to(device)
         self.xx, self.yy = xx.to(device), yy.to(device)
         
-        self.block_sz = 120  # depends on your memory, e.g., 128 needs 24GB GPU memory
+        self.block_sz = 100  # depends on your memory, e.g., 128 needs 24GB GPU memory
 
     
     def __call__(self, E0):
