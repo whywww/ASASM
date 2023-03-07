@@ -144,7 +144,7 @@ class AdpativeSamplingASM():
             tau_UHx = 2 * abs(FHcx_shifted) + FHbx + Uin.D
             tau_UHy = 2 * abs(FHcy_shifted) + FHby + Uin.D
 
-        # tau_UHx = tau_UHy = Uin.D 
+        tau_UHx = tau_UHy = Uin.D 
         
         # deprecated
         # maximum sampling interval limited by TF & Spectrum (Eq. S25)

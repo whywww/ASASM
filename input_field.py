@@ -97,7 +97,7 @@ class InputField():
         Ny = int(np.ceil(fbY * 2 * r))
         print(f'spatial sampling number = {Nx, Ny}.')
 
-        return Nx, Ny, fbX, fbY
+        return Nx, Ny, (Nx - 1) / (2 * r), (Ny - 1) / (2 * r)
 
 
     def sampling_without_LPC(self, r, s, wavelist):
@@ -113,7 +113,7 @@ class InputField():
         Ny = int(np.ceil(fbY * 2 * r))
         print(f'spatial sampling number = {Nx, Ny}.')
 
-        return Nx, Ny, fbX, fbY
+        return Nx, Ny, (Nx - 1) / (2 * r), (Ny - 1) / (2 * r)
 
     
     def set_input_plane(self, r, Nx, Ny):
