@@ -1,2 +1,3 @@
-# ASASM
-Modeling Off-Axis Diffraction with Adaptive-Sampling Angular Spectrum Method 
+# AS-ASM
+
+__The code will be uploaded after the paper comes public.__
