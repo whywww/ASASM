@@ -40,9 +40,9 @@ def draw_bandwidth(spectrum, fx, fy, fcX, fcY, fbX, fbY, save_path):
     save_image(circled_spectrum, save_path)
 
 
-def effective_bandwidth(D, wvls, is_plane_wave=False, zf=None, s=1.5):
+def effective_bandwidth(D, wvls, is_plane_wave=False, zf=None, s=1.):
     if is_plane_wave:
-        bandwidth = 129.3 * s / np.pi / D
+        bandwidth = 41.2 * s / D
     else:
         assert zf is not None, "Wave origin should be provided!"
         bandwidth = s * D / wvls / zf

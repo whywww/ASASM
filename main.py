@@ -18,7 +18,7 @@ z0 = 1.7  # source-aperture distance
 zf = 1/(1/f - 1/z0)  # image-side focal distance
 z = zf  # aperture-sensor distance
 r = f / 16 / 2  # radius of aperture
-thetaX = thetaY = 0  # incident angle
+thetaX = thetaY = 20  # incident angle
 
 s_ASASM = 1.5  # oversampling factor
 s_BEASM = 1.5  # oversampling factor
@@ -30,20 +30,19 @@ use_ASASM = True
 use_RS = False
 result_folder = 'results'
 RS_folder = 'RS'
-device_RS = 'cuda:3'
+device_RS = 'cuda:2'
 calculate_SNR = True
 
 # define observation window
-Mx, My = 1024, 1024
+Mx, My = 512, 512
 l = r * 0.25  # normal
-# Mx, My = 512, 512
 # l = r * 1. # cubic
 # l = r * 8.  # large angle
 xc = - z * np.sin(thetaX / 180 * np.pi) / np.sqrt(1 - np.sin(thetaX / 180 * np.pi)**2 - np.sin(thetaY / 180 * np.pi)**2)
 yc = - z * np.sin(thetaX / 180 * np.pi) / np.sqrt(1 - np.sin(thetaX / 180 * np.pi)**2 - np.sin(thetaY / 180 * np.pi)**2)
 
-x = np.linspace(-l / 2 + xc, l / 2 + xc, Mx, endpoint=False)
-y = np.linspace(-l / 2 + yc, l / 2 + yc, My, endpoint=False)
+x = np.linspace(-l / 2 + xc, l / 2 + xc, Mx, endpoint=True)
+y = np.linspace(-l / 2 + yc, l / 2 + yc, My, endpoint=True)
 print(f'observation window diamter = {l}.')
 
 if use_ASASM:
@@ -57,16 +56,16 @@ if use_ASASM:
     runtime = 0
     for i in tqdm(range(times)):
         start = time.time()
-        U2, Fu = prop2(Uin.E0, compensate, path)
+        U2, Fu = prop2(Uin.E0, compensate)
         end = time.time()
         runtime += end - start
     print(f'Time elapsed for ASASM: {runtime / times:.2f}')
-    # save_image(abs(U2), f'{path}.png', cmap='gray')
+    save_image(abs(U2), f'{path}.png', cmap='gray')
     # phase = np.angle(U2) % (2*np.pi)
-    # phase = remove_linear_phase(np.angle(U2), thetaX, thetaY, x, y, k) # for visualization
-    # save_image(phase, f'{path}-Phi.png', cmap='twilight')
-    # save_image(Fu, f'{path}-FU.png', cmap='viridis')
-    # np.save(f'{path}', U2)
+    phase = remove_linear_phase(np.angle(U2), thetaX, thetaY, x, y, k) # for visualization
+    save_image(phase, f'{path}-Phi.png', cmap='twilight')
+    save_image(Fu, f'{path}-FU.png', cmap='viridis')
+    np.save(f'{path}', U2)
     if calculate_SNR:
         if glob.glob(f'{RS_folder}/RS*-{thetaX}-{s_RS:.1f}.npy') != []:
             u_GT = np.load(glob.glob(f'{RS_folder}/RS*-{thetaX}-{s_RS:.1f}.npy')[0])

@@ -113,51 +113,39 @@ class AdpativeSamplingASM():
             FUHby = abs((hy + gy1) - (-hy + gy2)) / (2 * torch.pi)
 
             # to verify the extrema of g+h
-            # fx =fy= torch.linspace(-Lfx / 2, Lfx / 2 , 100, device=device)
+            # fx = fy = torch.linspace(-Lfx / 2, Lfx / 2 , 100, device=device)
             # ghx, ghy = self.grad_H(wavelength, z, fx+offx, fy+offy)
             # ghx += k * Uin.zf * wavelength**2 * fx
             # ghy += k * Uin.zf * wavelength**2 * fy
             # FUHbx = (max(ghx) - min(ghx)) / (2 * torch.pi)
             # FUHby = (max(ghy) - min(ghy)) / (2 * torch.pi)
 
-            deltax = self.compute_shift_of_H(FHcx, FUHbx, xc, wx)
-            deltay = self.compute_shift_of_H(FHcy, FUHby, yc, wy)
+            deltax = self.compute_shift_of_H(FHcx, FUHbx + 2 * Uin.D, xc, wx)
+            deltay = self.compute_shift_of_H(FHcy, FUHby + 2 * Uin.D, yc, wy)
             FUHcx_shifted = FHcx + deltax
             FUHcy_shifted = FHcy + deltay
             
-            tau_UHx = 2 * abs(FUHcx_shifted) + FUHbx
-            tau_UHy = 2 * abs(FUHcy_shifted) + FUHby
-            
-            # amplitude sampling
-            # tau_Uamp = Uin.D
-            # tau_UHx += tau_Uamp
-            # tau_UHy += tau_Uamp
+            tau_UHx = 2 * abs(FUHcx_shifted) + FUHbx + 2 * Uin.D
+            tau_UHy = 2 * abs(FUHcy_shifted) + FUHby + 2 * Uin.D
         else:
-            FHbx = abs(gx1 - gx2) / (2 * torch.pi)
-            FHby = abs(gy1 - gy2) / (2 * torch.pi)
+            tau_UHx = tau_UHy = torch.inf
 
-            deltax = self.compute_shift_of_H(FHcx, FHbx, xc, wx)
-            deltay = self.compute_shift_of_H(FHcy, FHby, yc, wy)
-            FHcx_shifted = FHcx + deltax
-            FHcy_shifted = FHcy + deltay
+        # upper bound
+        FHbx = abs(gx1 - gx2) / (2 * torch.pi)
+        FHby = abs(gy1 - gy2) / (2 * torch.pi)
 
-            tau_UHx = 2 * abs(FHcx_shifted) + FHbx + Uin.D
-            tau_UHy = 2 * abs(FHcy_shifted) + FHby + Uin.D
+        deltax = self.compute_shift_of_H(FHcx, FHbx + Uin.D, xc, wx)
+        deltay = self.compute_shift_of_H(FHcy, FHby + Uin.D, yc, wy)
+        FHcx_shifted = FHcx + deltax
+        FHcy_shifted = FHcy + deltay
 
-        tau_UHx = tau_UHy = Uin.D 
-        
-        # deprecated
-        # maximum sampling interval limited by TF & Spectrum (Eq. S25)
-        # denom = max(1 - (wavelength * fxmax)**2 - (wavelength * fymax) ** 2, eps)
-        # # tau_u = 2 * abs(zf * wavelength * Lfx / 2)
-        # tau_Hx = 2 * abs(-wavelength * z / torch.sqrt(denom) * fxmax + xc)
-        # # tau_x = tau_y = max(tau_u, tau_H)
-        # if Uin.type == "12":
-        #     tau_x = 2 * abs(Lfx / 2 * wavelength * (Uin.zf - z / torch.sqrt(denom))) + 2 * abs(-z * wavelength * offx / torch.sqrt(denom) + xc)
-        #     tau_y = 2 * abs(Lfy / 2 * wavelength * (Uin.zf - z / torch.sqrt(denom))) + 2 * abs(-z * wavelength * offy / torch.sqrt(denom) + yc)
-        # else:
-        #     tau_x = tau_Hx + Uin.D
-        
+        tau_fx_bound = 2 * abs(FHcx_shifted) + FHbx + Uin.D
+        tau_fy_bound = 2 * abs(FHcy_shifted) + FHby + Uin.D
+
+        # final phase gradient
+        tau_UHx = min(tau_UHx, tau_fx_bound)
+        tau_UHy = min(tau_UHy, tau_fy_bound)
+
         dfxMax1 = 1 / tau_UHx
         dfyMax1 = 1 / tau_UHy
 
@@ -174,8 +162,8 @@ class AdpativeSamplingASM():
         dfy = min(dfyMax1, dfyMax2, dfyMax3)
         print(f'Sampling interval limited by UH: {dfxMax1 <= dfxMax2}.')
         
-        LRfx = math.ceil(Lfx / dfx ) #* Uin.s
-        LRfy = math.ceil(Lfy / dfy ) #* Uin.s
+        LRfx = math.ceil(Lfx / dfx * Uin.s)
+        LRfy = math.ceil(Lfy / dfy * Uin.s)
         
         dfx2 = Lfx / LRfx
         dfy2 = Lfy / LRfy
@@ -195,17 +183,14 @@ class AdpativeSamplingASM():
         
         self.xi = xivec.to(dtype = complex_dtype)
         self.eta = etavec.to(dtype = complex_dtype)
-        self.x = xvec.to(dtype=complex_dtype) - deltax  # shift the observation window back to origin
-        self.y = yvec.to(dtype=complex_dtype) - deltay
+        self.x = xvec.to(dtype = complex_dtype) - deltax  # shift the observation window back to origin
+        self.y = yvec.to(dtype = complex_dtype) - deltay
         self.offx, self.offy = offx, offy
         self.device = device
         self.fx = fx_shift
         self.fy = fy_shift
         self.fbX = Uin.fbX
         self.fbY = Uin.fbY
-        a = torch.linspace(-1, 1, LRfx)
-        aa, bb = torch.meshgrid(a, a)
-        self.mask = torch.where(aa**2 + bb**2 <= 1, 1., 0.)
 
 
     def __call__(self, E0, compensate=True, save_path=None):
@@ -229,24 +214,10 @@ class AdpativeSamplingASM():
             Fu = mdft(E0, self.xi, self.eta, fx, fy)
         
         if save_path is not None:
-            # save_image(torch.angle(self.H), f'{save_path}-H.png', cmap='twilight')
-            # save_image(torch.angle(Fu * self.H)[0], f'{save_path}-FuH.png', cmap='twilight')
-            # Fu = self.mask * torch.ones_like(Fu) * torch.exp(1j * (torch.angle(Fu)))
-            # Fu = torch.abs(Fu) * torch.exp(1j * torch.zeros_like(Fu))
-            Fu = torch.abs(Fu) * torch.exp(1j * torch.angle(Fu))
-            save_image(torch.angle(Fu)[0], f'{save_path}-Fu_phi.png', cmap='twilight')
-            save_image(torch.abs(Fu)[0], f'{save_path}-Fu.png', cmap='viridis')
-            # FFu = mdft(Fu, fx - self.offx, fy - self.offy, self.xi, self.eta)
-            FFu = midft(Fu, self.xi, self.eta, fx - self.offx, fy - self.offy)
-            save_image(torch.abs(FFu)[0], f'{save_path}-FFu.png', cmap='viridis')
-            save_image(torch.angle(FFu)[0], f'{save_path}-FFu_phi.png', cmap='twilight')
-            save_image(torch.angle(E0), f'{save_path}-E0_phi.png', cmap='twilight')
-            save_image(torch.abs(E0), f'{save_path}-E0.png', cmap='viridis')
-
-            # if compensate:
-            #     draw_bandwidth(Fu[0], self.fx, self.fy, self.offx, self.offy, self.fbX, self.fbY, f'{save_path}-Fb.png')
-            # else:
-            #     draw_bandwidth(Fu[0], self.fx - self.offx, self.fy - self.offy, self.offx, self.offy, self.fbX, self.fbY, f'{save_path}-Fb.png')
+            if compensate:
+                draw_bandwidth(Fu[0], self.fx, self.fy, self.offx, self.offy, self.fbX, self.fbY, f'{save_path}-Fb.png')
+            else:
+                draw_bandwidth(Fu[0], self.fx - self.offx, self.fy - self.offy, self.offx, self.offy, self.fbX, self.fbY, f'{save_path}-Fb.png')
 
         Eout = midft(Fu * self.H, self.x, self.y, fx, fy)
         # Eout /= abs(Eout).max() # we dont need to normalize using MTP.

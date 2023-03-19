@@ -57,7 +57,6 @@ class InputField():
         else:
             Nx, Ny, fbX, fbY = self.sampling_without_LPC(r, s, wavelist)
         # Nx, Ny, fbX, fbY = self.sampling_with_LPC(r, s, wavelist)
-        # Nx, Ny, fbX, fbY = self.sampling_without_LPC(r, s, wavelist)
         
         self.set_input_plane(r, Nx, Ny)
         E0 = self.pupil
@@ -119,8 +118,8 @@ class InputField():
     def set_input_plane(self, r, Nx, Ny):
 
         # coordinates of aperture
-        xi = np.linspace(-r, r, Nx, endpoint=False)
-        eta = np.linspace(-r, r, Ny, endpoint=False)
+        xi = np.linspace(-r, r, Nx, endpoint=True)
+        eta = np.linspace(-r, r, Ny, endpoint=True)
         xi_, eta_ = np.meshgrid(xi, eta, indexing='xy')
 
         # circular aperture
@@ -129,58 +128,3 @@ class InputField():
         self.pupil = pupil
         self.xi, self.eta = xi, eta
         self.xi_, self.eta_ = xi_, eta_
-
-
-    # def sampling_with_LPC(self, D, s, x0=None, y0=None, z0=None, thetaX=None, thetaY=None, f=None, zf=None, is_plane_wave=False):
-    #     '''
-    #     Calculate the minimum number of aperture pixels 
-    #     required to satisfy the sampling theorem with Linear Phase Separation
-    #     using a thin lens modulation
-    #     '''
-
-    #     # using effective bandwidth (S7)
-    #     fb = effective_bandwidth(D, self.wvls, is_plane_wave = is_plane_wave, zf = zf, s = s)
-        
-    #     # using phase gradient analysis
-    #     if not is_plane_wave:
-    #         ra_min = - D / 2
-    #         denom = np.sqrt((ra_min - x0)**2 + (ra_min - y0)**2 + z0**2)
-    #         tau_x1 = 2 * abs((ra_min - x0) / denom - ra_min / f + np.sin(thetaX / 180 * np.pi)) / self.wvls
-    #         tau_y1 = 2 * abs((ra_min - y0) / denom - ra_min / f + np.sin(thetaY / 180 * np.pi)) / self.wvls
-
-    #         ra_max = D / 2
-    #         denom = np.sqrt((ra_max - x0)**2 + (ra_max - y0)**2 + z0**2)
-    #         tau_x2 = 2 * abs((ra_max - x0) / denom - ra_max / f + np.sin(thetaX / 180 * np.pi)) / self.wvls
-    #         tau_y2 = 2 * abs((ra_max - y0) / denom - ra_max / f + np.sin(thetaY / 180 * np.pi)) / self.wvls
-
-    #         fb2 = max(max(tau_x1, tau_x2), max(tau_y1, tau_y2)) * s
-    #         fb = max(fb, fb2)
-
-    #     Nx = Ny = int(fb * D * s)
-    #     print(f'spatial sampling number = {Nx, Ny}.')
-    #     return Nx, Ny, fb
-
-
-    # def sampling_without_LPC(self, D, s, x0, y0, z0, f):
-    #     '''
-    #     Calculate the minimum number of aperture pixels 
-    #     required to satisfy the sampling theorem without Linear Phase Separation
-    #     '''
-
-    #     # using phase gradient analysis
-    #     ra_min = - D / 2
-    #     denom = np.sqrt((ra_min - x0)**2 + (ra_min - y0)**2 + z0**2)
-    #     tau_x1 = 2 * abs((ra_min - x0) / denom - ra_min / f) / self.wvls
-    #     tau_y1 = 2 * abs((ra_min - y0) / denom - ra_min / f) / self.wvls
-        
-    #     ra_max = D / 2
-    #     denom = np.sqrt((ra_max - x0)**2 + (ra_max - y0)**2 + z0**2)
-    #     tau_x2 = 2 * abs((ra_max - x0) / denom - ra_max / f) / self.wvls
-    #     tau_y2 = 2 * abs((ra_max - y0) / denom - ra_max / f) / self.wvls
-
-    #     fb = max(max(tau_x1, tau_x2), max(tau_y1, tau_y2))
-    #     Nx = Ny = int(fb * D * s)
-    #     print(f'spatial sampling number = {Nx, Ny}.')
-
-    #     return Nx, Ny, fb
-

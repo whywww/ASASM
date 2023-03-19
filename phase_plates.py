@@ -109,9 +109,7 @@ class SphericalWave():
     
     def grad_symm(self, xi, eta):
 
-        # fb = effective_bandwidth(D, self.wvls, is_plane_wave = False, zf = zf)
-
-        denom = np.sqrt((xi - self.x0)**2 + (xi - self.y0)**2 + self.z0**2)
+        denom = np.sqrt((xi - self.x0)**2 + (eta - self.y0)**2 + self.z0**2)
         grad_uX = self.k * (xi - self.x0) / denom
         grad_uY = self.k * (eta - self.y0) / denom
 
