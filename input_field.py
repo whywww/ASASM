@@ -1,5 +1,5 @@
 import numpy as np
-from phase_plates import SphericalWave, PlaneWave, CubicPhasePlate, ThinLens
+from phase_plates import SphericalWave, PlaneWave, CubicPhasePlate, ThinLens, Diffuser
 from operator import add 
 
 
@@ -48,6 +48,14 @@ class InputField():
             print('\t Cubic phase plate')
 
             phase_plate = CubicPhasePlate(self.k, r, m=1e+3)
+            fcX += phase_plate.fcX
+            fcY += phase_plate.fcY
+            wavelist.append(phase_plate)
+
+        if "4" in typelist:
+            print('\t Random diffuser')
+
+            phase_plate = Diffuser(r, interpolation='linear')
             fcX += phase_plate.fcX
             fcY += phase_plate.fcY
             wavelist.append(phase_plate)

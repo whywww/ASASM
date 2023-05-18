@@ -40,7 +40,7 @@ def draw_bandwidth(spectrum, fx, fy, fcX, fcY, fbX, fbY, save_path):
     save_image(circled_spectrum, save_path)
 
 
-def effective_bandwidth(D, wvls, is_plane_wave=False, zf=None, s=1.):
+def effective_bandwidth(D, wvls=None, is_plane_wave=False, zf=None, s=1.):
     if is_plane_wave:
         bandwidth = 41.2 * s / D
     else:

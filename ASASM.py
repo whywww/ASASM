@@ -57,8 +57,9 @@ def midft(in_matrix, x, y, fx, fy):
 class AdpativeSamplingASM():
     def __init__(self, Uin, xvec, yvec, z, device):
         '''
-        :param xvec, yvec: vectors of source coordinates
-        :param wavelengths: wavelengths
+        :param Uin: input field object
+        :param xvec, yvec: vectors of destination coordinates
+        :param z: propagation distance
         '''
         
         super().__init__()
@@ -78,6 +79,7 @@ class AdpativeSamplingASM():
         # bandwidth of aperture
         Lfx = Uin.fbX
         Lfy = Uin.fbY
+        # Lfx = Lfy = 54400
 
         # off-axis offset
         xc, yc = xvec[len(xvec) // 2], yvec[len(yvec) // 2]
@@ -154,12 +156,12 @@ class AdpativeSamplingASM():
         dfyMax2 = 1 / (2 * abs(yc - deltay) + wy)
 
         # maximum sampling interval limited by diffraction limit
-        dfxMax3 = 1 / (41.2 * (xvec[-1] - xvec[-2]))
-        dfyMax3 = 1 / (41.2 * (yvec[-1] - yvec[-2]))
+        # dfxMax3 = 1 / (41.2 * (xvec[-1] - xvec[-2]))
+        # dfyMax3 = 1 / (41.2 * (yvec[-1] - yvec[-2]))
 
         # minimum requirements of sampling interval in k space
-        dfx = min(dfxMax1, dfxMax2, dfxMax3)
-        dfy = min(dfyMax1, dfyMax2, dfyMax3)
+        dfx = min(dfxMax1, dfxMax2)
+        dfy = min(dfyMax1, dfyMax2)
         print(f'Sampling interval limited by UH: {dfxMax1 <= dfxMax2}.')
         
         LRfx = math.ceil(Lfx / dfx * Uin.s)
@@ -195,7 +197,7 @@ class AdpativeSamplingASM():
 
     def __call__(self, E0, compensate=True, save_path=None):
         '''
-        :param E0: input field
+        :param E0: input field torch.angle(E0)
         :param z: propagation distance
         :param xo, yo, zo: point source location, used to calculate frequency sampling
         :param xd, yd: source plane vectors
@@ -234,15 +236,15 @@ class AdpativeSamplingASM():
         return gradx, grady
 
     
-    def compute_shift_of_H(self, Fc, Fb, pc, w):
+    def compute_shift_of_H(self, C1, C2, pc, w):
 
-        if (w > -2 * Fc - 2 * pc + Fb) and (w < 2 * Fc + 2 * pc + Fb):
-            delta = pc / 2 + w / 4 - Fc / 2 - Fb / 4
-        elif (w > 2 * Fc + 2 * pc + Fb) and (w < -2 * Fc - 2 * pc + Fb):
-            delta = pc / 2 - w / 4 - Fc / 2 + Fb / 4
-        elif (w > 2 * Fc + 2 * pc + Fb) and (w > -2 * Fc - 2 * pc + Fb):
+        if (w > -2 * C1 - 2 * pc + C2) and (w < 2 * C1 + 2 * pc + C2):
+            delta = pc / 2 + w / 4 - C1 / 2 - C2 / 4
+        elif (w > 2 * C1 + 2 * pc + C2) and (w < -2 * C1 - 2 * pc + C2):
+            delta = pc / 2 - w / 4 - C1 / 2 + C2 / 4
+        elif (w > 2 * C1 + 2 * pc + C2) and (w > -2 * C1 - 2 * pc + C2):
             delta = pc
-        elif (w < 2 * Fc + 2 * pc + Fb) and (w < -2 * Fc - 2 * pc + Fb):
-            delta = -Fc
+        elif (w < 2 * C1 + 2 * pc + C2) and (w < -2 * C1 - 2 * pc + C2):
+            delta = -C1
 
         return delta

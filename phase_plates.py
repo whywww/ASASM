@@ -1,5 +1,6 @@
 import numpy as np
 from utils import effective_bandwidth
+import cv2
 
 
 # class VortexPlate():
@@ -22,7 +23,6 @@ from utils import effective_bandwidth
 #         Uout = Uin * tf
 
 #         return Uout
-
 
 
 class CubicPhasePlate():
@@ -173,15 +173,51 @@ class ThinLens():
 
     def grad_symm(self, xi, eta):
 
-        grad_uX = self.k / self.f * xi
-        grad_uY = self.k / self.f * eta
+        grad_uX = -self.k / self.f * xi
+        grad_uY = -self.k / self.f * eta
 
         return grad_uX, grad_uY
 
 
     def grad_nonsymm(self, xi, eta):
 
-        grad_uX = self.k / self.f * xi
-        grad_uY = self.k / self.f * eta
+        grad_uX = -self.k / self.f * xi
+        grad_uY = -self.k / self.f * eta
         
         return grad_uX, grad_uY
+    
+
+class Diffuser():
+    def __init__(self, r, interpolation='nearest') -> None:
+        '''
+        Two types of diffusers: nearest or linear interpolated
+        '''
+        
+        self.fcX = self.fcY = 0
+        self.pitch = r / 10
+        self.N = int(r * 2 / self.pitch)
+        np.random.seed(0)
+        self.plate = np.random.rand(self.N, self.N)
+        self.interp = interpolation
+
+
+    def forward(self, E0, xi_, eta_, compensate):
+
+        if self.interp == 'nearest':
+            plate_sample = cv2.resize(self.plate, xi_.shape, interpolation=cv2.INTER_NEAREST)
+        else:
+            plate_sample = cv2.resize(self.plate, xi_.shape, interpolation=cv2.INTER_LINEAR)
+
+        phase = plate_sample * 4 * np.pi
+
+        return E0 * np.exp(1j * phase)
+
+
+    def grad_symm(self, xi, eta):
+
+        if self.interp == 'nearest':
+            grad_max = np.pi * effective_bandwidth(self.pitch, is_plane_wave = True)  # nearest interpolation
+        else:
+            grad_max = 4 * np.pi / self.pitch  # linear interpolation
+
+        return grad_max, grad_max

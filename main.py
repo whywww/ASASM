@@ -17,12 +17,13 @@ f = 35e-3  # focal length of lens (if applicable)
 z0 = 1.7  # source-aperture distance
 zf = 1/(1/f - 1/z0)  # image-side focal distance
 z = zf  # aperture-sensor distance
+print(z)
 r = f / 16 / 2  # radius of aperture
-thetaX = thetaY = 20  # incident angle
+thetaX = thetaY = 0  # incident angle
 
 s_ASASM = 1.5  # oversampling factor
 s_BEASM = 1.5  # oversampling factor
-s_RS = 4
+s_RS = 1.5
 compensate = True
 times = 1  # number of times to run for each method
 use_BEASM = False
@@ -30,7 +31,7 @@ use_ASASM = True
 use_RS = False
 result_folder = 'results'
 RS_folder = 'RS'
-device_RS = 'cuda:2'
+device_RS = 'cuda:1'
 calculate_SNR = True
 
 # define observation window
@@ -65,7 +66,7 @@ if use_ASASM:
     phase = remove_linear_phase(np.angle(U2), thetaX, thetaY, x, y, k) # for visualization
     save_image(phase, f'{path}-Phi.png', cmap='twilight')
     save_image(Fu, f'{path}-FU.png', cmap='viridis')
-    np.save(f'{path}', U2)
+    # np.save(f'{path}', U2)
     if calculate_SNR:
         if glob.glob(f'{RS_folder}/RS*-{thetaX}-{s_RS:.1f}.npy') != []:
             u_GT = np.load(glob.glob(f'{RS_folder}/RS*-{thetaX}-{s_RS:.1f}.npy')[0])
