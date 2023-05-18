@@ -79,7 +79,6 @@ class AdpativeSamplingASM():
         # bandwidth of aperture
         Lfx = Uin.fbX
         Lfy = Uin.fbY
-        # Lfx = Lfy = 54400
 
         # off-axis offset
         xc, yc = xvec[len(xvec) // 2], yvec[len(yvec) // 2]
@@ -145,8 +144,8 @@ class AdpativeSamplingASM():
         tau_fy_bound = 2 * abs(FHcy_shifted) + FHby + Uin.D
 
         # final phase gradient
-        tau_UHx = min(tau_UHx, tau_fx_bound)
-        tau_UHy = min(tau_UHy, tau_fy_bound)
+        tau_UHx = min(tau_UHx, tau_fx_bound) + 41.2 / Uin.fbX
+        tau_UHy = min(tau_UHy, tau_fy_bound) + 41.2 / Uin.fbY
 
         dfxMax1 = 1 / tau_UHx
         dfyMax1 = 1 / tau_UHy

@@ -30,6 +30,7 @@ class CubicPhasePlate():
         
         self.m = m
         self.k = k
+        self.r = r
         self.fcX = self.fcY = k / (2 * np.pi) * 3 / 2 * m * r**2
     
 
@@ -151,9 +152,7 @@ class PlaneWave():
 
     def grad_symm(self, xi, eta):
 
-        fb = effective_bandwidth(2 * self.r, 2 * np.pi / self.k, is_plane_wave = True)
-
-        return fb * np.pi, fb * np.pi
+        return 0, 0
 
 
 class ThinLens():
@@ -221,3 +220,27 @@ class Diffuser():
             grad_max = 4 * np.pi / self.pitch  # linear interpolation
 
         return grad_max, grad_max
+
+    
+class TestPlate():
+    def __init__(self, r) -> None:
+        
+        self.c = 41.2/(r*2)**2 * 2 * np.pi
+        # self.c = 41.2 / 3 * 2**5 * np.pi / (r*2)**6
+        self.fcX = self.fcY = 0
+        self.r = r
+
+
+    def forward(self, E0, xi_, eta_, compensate):
+
+        phase = self.c * xi_ * eta_
+        # phase = self.c * xi_**3 * eta_**3
+        return E0 * np.exp(1j * phase)
+
+
+    def grad_symm(self, xi, eta):
+
+        # plane = np.pi * effective_bandwidth(self.r*2, is_plane_wave = True)
+
+        return self.c * xi, self.c * eta
+        # return 3 * self.c * xi**2 * eta**3 + plane, 3 * self.c * xi**3 * eta**2 + plane

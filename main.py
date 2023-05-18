@@ -19,13 +19,13 @@ zf = 1/(1/f - 1/z0)  # image-side focal distance
 z = zf  # aperture-sensor distance
 print(z)
 r = f / 16 / 2  # radius of aperture
-thetaX = thetaY = 0  # incident angle
+thetaX = thetaY = 5  # incident angle
 
-s_ASASM = 1.5  # oversampling factor
+s_ASASM = 1.  # oversampling factor
 s_BEASM = 1.5  # oversampling factor
-s_RS = 1.5
+s_RS = 4
 compensate = True
-times = 1  # number of times to run for each method
+times = 5  # number of times to run for each method
 use_BEASM = False
 use_ASASM = True
 use_RS = False
@@ -61,12 +61,12 @@ if use_ASASM:
         end = time.time()
         runtime += end - start
     print(f'Time elapsed for ASASM: {runtime / times:.2f}')
-    save_image(abs(U2), f'{path}.png', cmap='gray')
+    # save_image(abs(U2), f'{path}.png', cmap='gray')
     # phase = np.angle(U2) % (2*np.pi)
-    phase = remove_linear_phase(np.angle(U2), thetaX, thetaY, x, y, k) # for visualization
-    save_image(phase, f'{path}-Phi.png', cmap='twilight')
-    save_image(Fu, f'{path}-FU.png', cmap='viridis')
-    # np.save(f'{path}', U2)
+    # phase = remove_linear_phase(np.angle(U2), thetaX, thetaY, x, y, k) # for visualization
+    # save_image(phase, f'{path}-Phi.png', cmap='twilight')
+    # save_image(Fu, f'{path}-FU.png', cmap='viridis')
+    np.save(f'{path}', U2)
     if calculate_SNR:
         if glob.glob(f'{RS_folder}/RS*-{thetaX}-{s_RS:.1f}.npy') != []:
             u_GT = np.load(glob.glob(f'{RS_folder}/RS*-{thetaX}-{s_RS:.1f}.npy')[0])
@@ -78,7 +78,7 @@ if use_BEASM:
     Uin = InputField("12", wvls, (thetaX, thetaY), r, z0, f, zf, s_BEASM, compensate=False)
 
     from shift_BEASM import shift_BEASM2d
-    prop1 = shift_BEASM2d(Uin, x, y, z) #, len(prop2.fx)
+    prop1 = shift_BEASM2d(Uin, x, y, z, len(prop2.fx)) #
     path = f'{result_folder}/BEASM({len(Uin.xi)},{prop1.Lfx})-{thetaX}-{s_BEASM:.3f}'
     runtime = 0
     for i in tqdm(range(times)):
@@ -89,9 +89,9 @@ if use_BEASM:
     print(f'Time elapsed for Shift-BEASM: {runtime / times:.2f}')
     save_image(abs(U1), f'{path}.png', cmap='gray')
     # phase = np.angle(U1) % (2*np.pi)
-    phase = remove_linear_phase(np.angle(U1), thetaX, thetaY, x, y, k) # for visualization
-    save_image(phase, f'{path}-Phi.png', cmap='twilight')
-    save_image(Fu, f'{path}-FU.png', cmap='viridis')
+    # phase = remove_linear_phase(np.angle(U1), thetaX, thetaY, x, y, k) # for visualization
+    # save_image(phase, f'{path}-Phi.png', cmap='twilight')
+    # save_image(Fu, f'{path}-FU.png', cmap='viridis')
     np.save(f'{path}', U1)
     if calculate_SNR:
         if glob.glob(f'{RS_folder}/RS*-{thetaX}-{s_RS:.1f}.npy') != []:
