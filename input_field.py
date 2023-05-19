@@ -61,13 +61,13 @@ class InputField():
             fcY += phase_plate.fcY
             wavelist.append(phase_plate)
 
-        if "5" in typelist:
-            print('\t Test plate')
+        # if "5" in typelist:
+        #     print('\t Test plate')
 
-            phase_plate = TestPlate(r)
-            fcX += phase_plate.fcX
-            fcY += phase_plate.fcY
-            wavelist.append(phase_plate)
+        #     phase_plate = TestPlate(r)
+        #     fcX += phase_plate.fcX
+        #     fcY += phase_plate.fcY
+        #     wavelist.append(phase_plate)
 
         if compensate:
             Nx, Ny, fbX, fbY = self.sampling_with_LPC(r, s, wavelist)
@@ -106,11 +106,23 @@ class InputField():
 
         grad1 = [0, 0]
         grad2 = [0, 0]
+        diffuser = False
         for wave in wavelist:
-            grad1 = list(map(add, grad1, wave.grad_symm(-r, -r))) 
-            grad2 = list(map(add, grad2, wave.grad_symm(r, r))) 
+            if isinstance(wave, Diffuser):
+                diffuser = True
+                grad = wave.grad_symm(r, r)
+                fbX_diffuser = grad[0] / np.pi * s
+                fbY_diffuser = grad[1] / np.pi * s
+            else:
+                grad1 = list(map(add, grad1, wave.grad_symm(-r, -r))) 
+                grad2 = list(map(add, grad2, wave.grad_symm(r, r))) 
         fbX = (max(abs(grad1[0]), abs(grad2[0])) / np.pi + fplane) * s
         fbY = (max(abs(grad1[1]), abs(grad2[1])) / np.pi + fplane) * s
+
+        if diffuser:
+            fbX = max(fbX, fbX_diffuser)
+            fbY = max(fbY, fbY_diffuser)
+
         Nx = int(np.ceil(fbX * 2 * r))
         Ny = int(np.ceil(fbY * 2 * r))
         print(f'spatial sampling number = {Nx, Ny}.')

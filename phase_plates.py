@@ -214,10 +214,10 @@ class Diffuser():
 
     def grad_symm(self, xi, eta):
 
-        if self.interp == 'nearest':
-            grad_max = np.pi * effective_bandwidth(self.pitch, is_plane_wave = True)  # nearest interpolation
-        else:
-            grad_max = 4 * np.pi / self.pitch  # linear interpolation
+        grad_max = np.pi * effective_bandwidth(self.pitch, is_plane_wave = True)  # nearest interpolation
+
+        if self.interp == 'linear':
+            grad_max += 4 * np.pi / self.pitch  # linear interpolation
 
         return grad_max, grad_max
 
