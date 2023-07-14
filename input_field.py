@@ -1,11 +1,15 @@
 import numpy as np
-from phase_plates import SphericalWave, PlaneWave, CubicPhasePlate, ThinLens, Diffuser, TestPlate
+from phase_plates import SphericalWave, PlaneWave, ThinLens, Diffuser
 from operator import add 
 from utils import effective_bandwidth
 
 
 class InputField():
-    def __init__(self, type:str, wvls:float, angles, r:float, z0=None, f=None, zf=None, s=2.5, compensate=True) -> None:
+    '''
+    Prepare compensated input field and spatial sampling
+    '''
+    def __init__(self, type:str, wvls:float, angles, r:float, 
+                 z0=None, f=None, zf=None, s=1.5) -> None:
 
         self.wvls = wvls  # wavelength of light in vacuum
         self.k = 2 * np.pi / self.wvls  # wavenumebr
@@ -16,10 +20,11 @@ class InputField():
         x0, y0 = r0 * np.sin(thetaX / 180 * np.pi), r0 * np.sin(thetaY / 180 * np.pi)
         print(f'aperture diameter = {2 * r}, offset = {x0:.4f}, theta = {thetaX}.')
 
-        fcX = 0
-        fcY = 0
+        # prepare wave components
         typelist = [*type]
         wavelist = []
+        fcX = 0  # frequency centers
+        fcY = 0
 
         print('Input field contains:')
         if "0" in typelist: 
@@ -46,39 +51,21 @@ class InputField():
             wavelist.append(lens)
 
         if "3" in typelist:
-            print('\t Cubic phase plate')
-
-            phase_plate = CubicPhasePlate(self.k, r, m=1e+3)
-            fcX += phase_plate.fcX
-            fcY += phase_plate.fcY
-            wavelist.append(phase_plate)
-
-        if "4" in typelist:
             print('\t Random diffuser')
 
-            phase_plate = Diffuser(r, interpolation='linear', rand_phase=True, rand_amp=False)
+            phase_plate = Diffuser(r, interpolation='linear', rand_phase=True, rand_amp=True)
             fcX += phase_plate.fcX
             fcY += phase_plate.fcY
             wavelist.append(phase_plate)
 
-        # if "5" in typelist:
-        #     print('\t Test plate')
-
-        #     phase_plate = TestPlate(r)
-        #     fcX += phase_plate.fcX
-        #     fcY += phase_plate.fcY
-        #     wavelist.append(phase_plate)
-
-        if compensate:
-            Nx, Ny, fbX, fbY = self.sampling_with_LPC(r, s, wavelist)
-        else:
-            Nx, Ny, fbX, fbY = self.sampling_without_LPC(r, s, wavelist)
-        # Nx, Ny, fbX, fbY = self.sampling_with_LPC(r, s, wavelist)
+        # Compute spatial sampling
+        Nx, Ny, fbX, fbY = self.spatial_sampling(r, s, wavelist)
         
+        # Prepare input field
         self.set_input_plane(r, Nx, Ny)
         E0 = self.pupil
         for wave in wavelist:
-            E0 = wave.forward(E0, self.xi_, self.eta_, compensate)
+            E0 = wave.forward(E0, self.xi_, self.eta_)
 
         self.fcX = fcX
         self.fcY = fcY
@@ -91,31 +78,32 @@ class InputField():
         self.type = type
 
 
-    def get_plane_wave(self, x0, y0, distance):
+    def spatial_sampling(self, r, s, wavelist):
+        '''
+        :param r: aperture radius
+        :param s: oversampling factor
+        :param wavelist: a list of input wave components
+        :return: number of samples in both dimensions, bandwidths in both dimensions
+        '''
 
-        vec = np.array([-x0, -y0, distance])
-        kx, ky, kz = vec / np.sqrt(np.dot(vec, vec))
-        phase = self.k * (kx * self.xi_ + ky * self.eta_ + kz)
-
-        return np.exp(1j * phase)
-
-
-    def sampling_with_LPC(self, r, s, wavelist):
-
+        # Second term in Eq4, the size of Airy disk
         fplane = effective_bandwidth(r*2, is_plane_wave = True)
 
+        # First term in Eq4, maximum phase gradient
+        # as the phase terms are all monotonic here, 
+        # we use the two boundaries of aperture (+-r) to find max
         grad1 = [0, 0]
         grad2 = [0, 0]
         diffuser = False
         for wave in wavelist:
             if isinstance(wave, Diffuser):
                 diffuser = True
-                grad = wave.grad_symm(r, r)
+                grad = wave.phase_gradient()
                 fbX_diffuser = grad[0] * s
                 fbY_diffuser = grad[1] * s
             else:
-                grad1 = list(map(add, grad1, wave.grad_symm(-r, -r))) 
-                grad2 = list(map(add, grad2, wave.grad_symm(r, r))) 
+                grad1 = list(map(add, grad1, wave.phase_gradient(-r, -r))) 
+                grad2 = list(map(add, grad2, wave.phase_gradient(r, r))) 
         fbX = (max(abs(grad1[0]), abs(grad2[0])) / np.pi + fplane) * s
         fbY = (max(abs(grad1[1]), abs(grad2[1])) / np.pi + fplane) * s
 
@@ -130,24 +118,6 @@ class InputField():
         return Nx, Ny, (Nx - 1) / (2 * r), (Ny - 1) / (2 * r)
 
 
-    def sampling_without_LPC(self, r, s, wavelist):
-
-        # fplane = effective_bandwidth(r*2, is_plane_wave = True)
-
-        grad1 = [0, 0]
-        grad2 = [0, 0]
-        for wave in wavelist:
-            grad1 = list(map(add, grad1, wave.grad_nonsymm(-r, -r))) 
-            grad2 = list(map(add, grad2, wave.grad_nonsymm(r, r))) 
-        fbX = (max(abs(grad1[0]), abs(grad2[0])) / np.pi ) * s
-        fbY = (max(abs(grad1[1]), abs(grad2[1])) / np.pi ) * s
-        Nx = int(np.ceil(fbX * 2 * r))
-        Ny = int(np.ceil(fbY * 2 * r))
-        print(f'spatial sampling number = {Nx, Ny}.')
-
-        return Nx, Ny, (Nx - 1) / (2 * r), (Ny - 1) / (2 * r)
-
-    
     def set_input_plane(self, r, Nx, Ny):
 
         # coordinates of aperture

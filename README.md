@@ -1,1 +1,1 @@
-Run: `python simple_test.py` and find results in the `results` folder.
+Run: `python main.py` and find results in the `results` folder.

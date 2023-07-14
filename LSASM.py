@@ -4,7 +4,6 @@ from utils import draw_bandwidth, save_image
 
 
 def mdft(in_matrix, x, y, fx, fy):
-    'x,fx: vertical; y,fy: horizontal'
     x = x.unsqueeze(-1)
     y = y.unsqueeze(-2)
     fx = fx.unsqueeze(-2)
@@ -54,7 +53,7 @@ def midft(in_matrix, x, y, fx, fy):
     return out_matrix
 
 
-class AdpativeSamplingASM():
+class LeastSamplingASM():
     def __init__(self, Uin, xvec, yvec, z, device):
         '''
         :param Uin: input field object
@@ -107,19 +106,12 @@ class AdpativeSamplingASM():
         FHcx = (gx1 + gx2) / (4 * torch.pi)
         FHcy = (gy1 + gy2) / (4 * torch.pi)
 
+        # specify the frequency sampling for each type of input field
         if Uin.type == "12":
             hx = k * Uin.zf * wavelength**2 * Lfx / 2
             hy = k * Uin.zf * wavelength**2 * Lfy / 2
             FUHbx = abs((hx + gx1) - (-hx + gx2)) / (2 * torch.pi)
             FUHby = abs((hy + gy1) - (-hy + gy2)) / (2 * torch.pi)
-
-            # to verify the extrema of g+h
-            # fx = fy = torch.linspace(-Lfx / 2, Lfx / 2 , 100, device=device)
-            # ghx, ghy = self.grad_H(wavelength, z, fx+offx, fy+offy)
-            # ghx += k * Uin.zf * wavelength**2 * fx
-            # ghy += k * Uin.zf * wavelength**2 * fy
-            # FUHbx = (max(ghx) - min(ghx)) / (2 * torch.pi)
-            # FUHby = (max(ghy) - min(ghy)) / (2 * torch.pi)
 
             deltax = self.compute_shift_of_H(FHcx, FUHbx + 2 * Uin.D, xc, wx)
             deltay = self.compute_shift_of_H(FHcy, FUHby + 2 * Uin.D, yc, wy)
@@ -154,14 +146,9 @@ class AdpativeSamplingASM():
         dfxMax2 = 1 / (2 * abs(xc - deltax) + wx)
         dfyMax2 = 1 / (2 * abs(yc - deltay) + wy)
 
-        # maximum sampling interval limited by diffraction limit
-        # dfxMax3 = 1 / (41.2 * (xvec[-1] - xvec[-2]))
-        # dfyMax3 = 1 / (41.2 * (yvec[-1] - yvec[-2]))
-
         # minimum requirements of sampling interval in k space
         dfx = min(dfxMax1, dfxMax2)
         dfy = min(dfyMax1, dfyMax2)
-        print(f'Sampling interval limited by UH: {dfxMax1 <= dfxMax2}.')
         
         LRfx = math.ceil(Lfx / dfx * Uin.s)
         LRfy = math.ceil(Lfy / dfy * Uin.s)
@@ -194,14 +181,9 @@ class AdpativeSamplingASM():
         self.fbY = Uin.fbY
 
 
-    def __call__(self, E0, compensate=True, save_path=None):
+    def __call__(self, E0):
         '''
-        :param E0: input field torch.angle(E0)
-        :param z: propagation distance
-        :param xo, yo, zo: point source location, used to calculate frequency sampling
-        :param xd, yd: source plane vectors
-        :param xs, ys: destination plane vectors
-        :param z: travel distance
+        :param E0: input field
         '''
 
         E0 = torch.as_tensor(E0, dtype=torch.complex128, device=self.device)
@@ -209,21 +191,12 @@ class AdpativeSamplingASM():
         fx = self.fx.unsqueeze(0)
         fy = self.fy.unsqueeze(0)
 
-        if compensate:
-            Fu = mdft(E0, self.xi, self.eta, fx - self.offx, fy - self.offy)
-        else:
-            Fu = mdft(E0, self.xi, self.eta, fx, fy)
+        Fu = mdft(E0, self.xi, self.eta, fx - self.offx, fy - self.offy)
         
-        if save_path is not None:
-            if compensate:
-                draw_bandwidth(Fu[0], self.fx, self.fy, self.offx, self.offy, self.fbX, self.fbY, f'{save_path}-Fb.png')
-            else:
-                draw_bandwidth(Fu[0], self.fx - self.offx, self.fy - self.offy, self.offx, self.offy, self.fbX, self.fbY, f'{save_path}-Fb.png')
-
         Eout = midft(Fu * self.H, self.x, self.y, fx, fy)
         # Eout /= abs(Eout).max() # we dont need to normalize using MTP.
 
-        return Eout[0].cpu().numpy(), abs(Fu[0]).cpu().numpy()
+        return Eout[0].cpu().numpy()
 
 
     def grad_H(self, lam, z, fx, fy):
