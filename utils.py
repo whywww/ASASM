@@ -1,7 +1,5 @@
 import cv2
 import numpy as np
-import torch
-import matplotlib.pyplot as plt
 from PIL import Image 
 from matplotlib import cm
 

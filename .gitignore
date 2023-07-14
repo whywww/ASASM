@@ -7,8 +7,9 @@ results-suppl
 results-s1
 results-s2
 results-visual
-results
+results/*
 RS1024
 RS
 RS-old
 .idea
+.gitignore
