@@ -19,13 +19,13 @@ zf = 1/(1/f - 1/z0)  # image-side focal distance
 z = zf  # aperture-sensor distance
 print(z)
 r = f / 16 / 2  # radius of aperture
-thetaX = thetaY = 5  # incident angle
+thetaX = thetaY = 35  # incident angle
 
-s_ASASM = 1.  # oversampling factor
+s_ASASM = 1.5  # oversampling factor
 s_BEASM = 1.5  # oversampling factor
-s_RS = 4
+s_RS = 1.5
 compensate = True
-times = 5  # number of times to run for each method
+times = 1  # number of times to run for each method
 use_BEASM = False
 use_ASASM = True
 use_RS = False
@@ -36,9 +36,10 @@ calculate_SNR = True
 
 # define observation window
 Mx, My = 512, 512
-l = r * 0.25  # normal
+# l = r * 0.25  # normal
+# l = 0.0136/1.5  # tau_freq
 # l = r * 1. # cubic
-# l = r * 8.  # large angle
+l = r * 8.  # 35 degrees
 xc = - z * np.sin(thetaX / 180 * np.pi) / np.sqrt(1 - np.sin(thetaX / 180 * np.pi)**2 - np.sin(thetaY / 180 * np.pi)**2)
 yc = - z * np.sin(thetaX / 180 * np.pi) / np.sqrt(1 - np.sin(thetaX / 180 * np.pi)**2 - np.sin(thetaY / 180 * np.pi)**2)
 
@@ -55,18 +56,23 @@ if use_ASASM:
     prop2 = AdpativeSamplingASM(Uin, x, y, z, device)
     path = f'{result_folder}/ASASM({len(Uin.xi)},{len(prop2.fx)})-{thetaX}-{s_ASASM:.2f}'
     runtime = 0
+    # save_image(abs(Uin.E0), f'{path}-E0.png', cmap='gray')
+    # save_image(np.angle(Uin.E0) % (2*np.pi) * Uin.pupil, f'{path}-E0Phi.png', cmap='twilight')
+
     for i in tqdm(range(times)):
         start = time.time()
         U2, Fu = prop2(Uin.E0, compensate)
         end = time.time()
         runtime += end - start
     print(f'Time elapsed for ASASM: {runtime / times:.2f}')
-    # save_image(abs(U2), f'{path}.png', cmap='gray')
-    # phase = np.angle(U2) % (2*np.pi)
+
+    save_image(abs(U2), f'{path}.png', cmap='plasma')
+    phase = np.angle(U2) % (2*np.pi)
     # phase = remove_linear_phase(np.angle(U2), thetaX, thetaY, x, y, k) # for visualization
-    # save_image(phase, f'{path}-Phi.png', cmap='twilight')
-    # save_image(Fu, f'{path}-FU.png', cmap='viridis')
+    save_image(phase, f'{path}-Phi.png', cmap='twilight')
+    save_image(Fu, f'{path}-FU.png', cmap='viridis')
     np.save(f'{path}', U2)
+
     if calculate_SNR:
         if glob.glob(f'{RS_folder}/RS*-{thetaX}-{s_RS:.1f}.npy') != []:
             u_GT = np.load(glob.glob(f'{RS_folder}/RS*-{thetaX}-{s_RS:.1f}.npy')[0])
@@ -78,7 +84,7 @@ if use_BEASM:
     Uin = InputField("12", wvls, (thetaX, thetaY), r, z0, f, zf, s_BEASM, compensate=False)
 
     from shift_BEASM import shift_BEASM2d
-    prop1 = shift_BEASM2d(Uin, x, y, z, len(prop2.fx)) #
+    prop1 = shift_BEASM2d(Uin, x, y, z) #, len(prop2.fx)
     path = f'{result_folder}/BEASM({len(Uin.xi)},{prop1.Lfx})-{thetaX}-{s_BEASM:.3f}'
     runtime = 0
     for i in tqdm(range(times)):
@@ -89,9 +95,9 @@ if use_BEASM:
     print(f'Time elapsed for Shift-BEASM: {runtime / times:.2f}')
     save_image(abs(U1), f'{path}.png', cmap='gray')
     # phase = np.angle(U1) % (2*np.pi)
-    # phase = remove_linear_phase(np.angle(U1), thetaX, thetaY, x, y, k) # for visualization
-    # save_image(phase, f'{path}-Phi.png', cmap='twilight')
-    # save_image(Fu, f'{path}-FU.png', cmap='viridis')
+    phase = remove_linear_phase(np.angle(U1), thetaX, thetaY, x, y, k) # for visualization
+    save_image(phase, f'{path}-Phi.png', cmap='twilight')
+    save_image(Fu, f'{path}-FU.png', cmap='viridis')
     np.save(f'{path}', U1)
     if calculate_SNR:
         if glob.glob(f'{RS_folder}/RS*-{thetaX}-{s_RS:.1f}.npy') != []:
@@ -101,7 +107,7 @@ if use_BEASM:
 
 if use_RS:
     print('-------------- Propagating with RS integral --------------')
-    Uin = InputField("12", wvls, (thetaX, thetaY), r, z0, f, zf, s_RS, compensate=False)
+    Uin = InputField("4", wvls, (thetaX, thetaY), r, z0, f, zf, s_RS, compensate=True)
 
     # from RS import RSDiffraction_INT  # cpu, super slow
     # prop = RSDiffraction_INT()

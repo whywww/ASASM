@@ -57,6 +57,10 @@ def save_image(image, save_path, cmap='gray'):
         imarray = cm.viridis(imarray)
     elif cmap == 'twilight':
         imarray = cm.twilight(imarray)
+    elif cmap == 'magma':
+        imarray = cm.magma(imarray)
+    elif cmap == 'plasma':
+        imarray = cm.plasma(imarray)
     im = Image.fromarray(np.uint8(imarray * 255))
     im.save(save_path)
 

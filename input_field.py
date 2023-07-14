@@ -56,7 +56,7 @@ class InputField():
         if "4" in typelist:
             print('\t Random diffuser')
 
-            phase_plate = Diffuser(r, interpolation='linear')
+            phase_plate = Diffuser(r, interpolation='linear', rand_phase=True, rand_amp=False)
             fcX += phase_plate.fcX
             fcY += phase_plate.fcY
             wavelist.append(phase_plate)
@@ -111,8 +111,8 @@ class InputField():
             if isinstance(wave, Diffuser):
                 diffuser = True
                 grad = wave.grad_symm(r, r)
-                fbX_diffuser = grad[0] / np.pi * s
-                fbY_diffuser = grad[1] / np.pi * s
+                fbX_diffuser = grad[0] * s
+                fbY_diffuser = grad[1] * s
             else:
                 grad1 = list(map(add, grad1, wave.grad_symm(-r, -r))) 
                 grad2 = list(map(add, grad2, wave.grad_symm(r, r))) 

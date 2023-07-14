@@ -187,7 +187,7 @@ class ThinLens():
     
 
 class Diffuser():
-    def __init__(self, r, interpolation='nearest') -> None:
+    def __init__(self, r, interpolation='nearest', rand_phase=True, rand_amp=False) -> None:
         '''
         Two types of diffusers: nearest or linear interpolated
         '''
@@ -198,6 +198,8 @@ class Diffuser():
         np.random.seed(0)
         self.plate = np.random.rand(self.N, self.N)
         self.interp = interpolation
+        self.rand_phase = rand_phase
+        self.rand_amp = rand_amp
 
 
     def forward(self, E0, xi_, eta_, compensate):
@@ -207,17 +209,28 @@ class Diffuser():
         else:
             plate_sample = cv2.resize(self.plate, xi_.shape, interpolation=cv2.INTER_LINEAR)
 
-        phase = plate_sample * 4 * np.pi
+        amp = np.ones_like(plate_sample)
+        phase = np.zeros_like(plate_sample)
+        if self.rand_phase:
+            phase = plate_sample * 4 * np.pi
+        if self.rand_amp:
+            amp = plate_sample
 
-        return E0 * np.exp(1j * phase)
+        # from utils import save_image
+        # save_image(plate_sample * abs(E0), f'E0Phi.png', cmap='twilight')
+        
+        return E0 * amp * np.exp(1j * phase)
 
 
     def grad_symm(self, xi, eta):
 
-        grad_max = np.pi * effective_bandwidth(self.pitch, is_plane_wave = True)  # nearest interpolation
+        grad_max = effective_bandwidth(self.pitch, is_plane_wave = True)  # nearest interpolation
 
         if self.interp == 'linear':
-            grad_max += 4 * np.pi / self.pitch  # linear interpolation
+            if self.rand_phase:
+                grad_max += 4 / self.pitch  # linear interpolation
+            if self.rand_amp:
+                grad_max += 1 / self.pitch / np.pi
 
         return grad_max, grad_max
 
