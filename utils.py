@@ -1,41 +1,6 @@
-import cv2
 import numpy as np
 from PIL import Image 
 from matplotlib import cm
-
-
-def draw_ellipse(image, center, radius, cmap='viridis'):
-
-    thickness = image.shape[-1] // 70
-
-    image = np.asarray(image / image.max())
-    if cmap == 'viridis':
-        image = cm.viridis(image)[..., :-1]
-    else:
-        image = np.repeat(image[..., None], 3, axis=-1)
-        
-    image = (image * 255).astype(np.uint8)
-    color = (237, 228, 86)  # light yellow RGB
-    # color = (102, 145, 59)  # deep green RGB
-    
-    # image = cv2.ellipse(image, center, radius, 0., 0., 360., color, thickness=thickness)
-    # image = cv2.circle(image, center, radius=thickness, color=color, thickness=-1)
-    image = cv2.rectangle(image, (center[0]-radius[0], center[1]-radius[1]), 
-                (center[0]+radius[0], center[1]+radius[1]), color, thickness)
-    
-    return image
-
-
-def draw_bandwidth(spectrum, fx, fy, fcX, fcY, fbX, fbY, save_path):
-    dfx = fx[-1] - fx[-2]
-    dfy = fy[-1] - fy[-2]
-    rx = int(fbX / 2 / dfx)  # in pixel
-    ry = int(fbY / 2 / dfy)  # in pixel
-    cx = int(abs((fcX - fx[0]) / dfx))
-    cy = int(abs((fcY - fy[0]) / dfy))
-
-    circled_spectrum = draw_ellipse(abs(spectrum).cpu(), (cx, cy), (rx, ry), cmap='viridis')
-    save_image(circled_spectrum, save_path)
 
 
 def effective_bandwidth(D, wvls=None, is_plane_wave=False, zf=None, s=1.):
