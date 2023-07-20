@@ -27,8 +27,8 @@ Run `python main.py` and find results in the `results` folder.
 We display LS-ASM speedup along 0 - 20 degrees of incident angles.
 <img src="documents/results.png" alt="results" width="400">
 
-As well as fidelity compared with Zemax and Rayleigh-Sommerfeld (Ground Truth).
-<img src="documents/more-results2.png" alt="more_results" width="400">
+<!-- As well as fidelity compared with Zemax and Rayleigh-Sommerfeld (Ground Truth).
+<img src="documents/more-results2.png" alt="more_results" width="400"> -->
 
 Diffuser results closely resemble RS
 <img src="documents/uniform-diffuser.png" alt="diffuser" width="400">
