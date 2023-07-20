@@ -22,12 +22,11 @@ thetaX = thetaY = 0  # incident angle in degree
 
 s_LSASM = 1.5  # oversampling factor for LSASM
 s_RS = 4  # oversampling factor for Rayleigh-Sommerfeld
-compensate = True  # LPC
 use_LSASM = True
 use_RS = False
 result_folder = 'results'
 RS_folder = 'RS'
-calculate_SNR = False
+calculate_SNR = False  # compute SNR using pre-computed RS results as ground truth
 
 # define observation window
 Mx, My = 512, 512
@@ -80,6 +79,7 @@ if use_RS:
     U0 = prop(Uin.E0)
     end = time.time()
     print(f'Time elapsed for RS: {end-start:.2f}')
+    
     save_image(abs(U0), f'{path}.png', cmap='gray')
     phase = remove_linear_phase(np.angle(U0), thetaX, thetaY, x, y, k) # for visualization
     save_image(phase, f'{path}-Phi.png', cmap='twilight')

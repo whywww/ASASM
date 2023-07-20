@@ -187,13 +187,21 @@ class LeastSamplingASM():
 
         E0 = torch.as_tensor(E0, dtype=torch.complex128, device=self.device)
 
+        # MTP keeps the total energy same after propagation,
+        # thus does not need normalization. To test energy:
+        # pitch = self.xi[-1] - self.xi[-2]
+        # E0 /= torch.sqrt(torch.sum(abs(E0)**2 * (pitch**2), dim=(-2,-1), keepdim=True))
+
         fx = self.fx.unsqueeze(0)
         fy = self.fy.unsqueeze(0)
 
         Fu = mdft(E0, self.xi, self.eta, fx - self.offx, fy - self.offy)
         
         Eout = midft(Fu * self.H, self.x, self.y, fx, fy)
-        # Eout /= abs(Eout).max() # we dont need to normalize using MTP.
+
+        # To test energy:
+        # pitch = self.x[-1] - self.x[-2]
+        # print(torch.sum(abs(Eout)**2 * (pitch**2), dim=(-2,-1), keepdim=True))
 
         return Eout[0].cpu().numpy()
 
