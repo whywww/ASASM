@@ -25,20 +25,16 @@ Run and find results in the `results` folder.
 python main.py
 ```
 
-
 ## Performance
 We display LS-ASM speedup along 0 - 20 degrees of incident angles.\
 <img src="documents/results.png" alt="results" width="400">
 
-<!-- As well as fidelity compared with Zemax and Rayleigh-Sommerfeld (Ground Truth).
-<img src="documents/more-results2.png" alt="more_results" width="400"> -->
-
-Diffuser results closely resemble RS\
+Diffuser results closely resemble RS.\
 <img src="documents/uniform-diffuser.png" alt="diffuser" width="400">
 
 ## Citation
 
-If you use this code Please cite our paper if you find it valuable:
+If you use this code and find our work valuable, please cite our paper.
 ```
 @article{Wei:23,
 title       = {Modeling Off-Axis Diffraction with the Least-Sampling Angular Spectrum Method},
