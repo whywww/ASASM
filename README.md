@@ -4,7 +4,7 @@ This repository provides the official open-source code of the following paper:
 **Modeling off-axis diffraction with least-sampling angular spectrum method**\
 Haoyu Wei*, Xin Liu*, Xiang Hao, Edmund Y. Lam, Yifan Peng\
 Paper: https://doi.org/10.1364/OPTICA.490223 \
-Correspondance: [Dr. Peng](https://www.eee.hku.hk/~evanpeng/) and [Prof. Lam](https://www.eee.hku.hk/~elam/). For implementation and experiment details contact Haoyu (haoyu.wei97@gmail.com).
+Correspondence: [Dr. Peng](https://www.eee.hku.hk/~evanpeng/) and [Prof. Lam](https://www.eee.hku.hk/~elam/). For implementation and experiment details please contact Haoyu (haoyu.wei97@gmail.com).
 
 <img src="documents/principles.png" alt="principle" width="300"/>
 
@@ -16,7 +16,7 @@ Create a conda environment from yml file:
 ```
 conda env create -f environment.yml
 ```
-If you are running on a GPU, please install a PyTorch version that matches the cuda version on your machine.
+If you are running on a GPU, please install a PyTorch version that matches the Cuda version on your machine.
 
 ### Config and Run
 Configurations are in `main.py`.\
@@ -27,10 +27,10 @@ python main.py
 
 ## Performance
 We display LS-ASM speedup along 0 - 20 degrees of incident angles.\
-<img src="documents/results.png" alt="results" width="400">
+<img src="documents/results.png" alt="results" width="800">
 
 Diffuser results closely resemble RS.\
-<img src="documents/uniform-diffuser.png" alt="diffuser" width="400">
+<img src="documents/uniform-diffuser.png" alt="diffuser" width="800">
 
 ## Citation
 
