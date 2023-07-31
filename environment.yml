@@ -1,4 +1,4 @@
-name: sampling
+name: lsasm
 channels:
   - pytorch
   - conda-forge

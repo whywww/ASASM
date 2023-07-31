@@ -1,3 +1,16 @@
+"""
+This is the implementation of the algorithm LS-ASM.
+
+This code and data is released under the Creative Commons Attribution-NonCommercial 4.0 International license (CC BY-NC.) In a nutshell:
+    # The license is only for non-commercial use (commercial licenses can be obtained from authors).
+    # The material is provided as-is, with no warranties whatsoever.
+    # If you publish any code, data, or scientific work based on this, please cite our work.
+
+    
+Technical Paper:
+Haoyu Wei, Xin Liu, Xiang Hao, Edmund Y. Lam, and Yifan Peng, "Modeling off-axis diffraction with the least-sampling angular spectrum method," Optica 10, 959-962 (2023)
+"""
+
 import torch
 import math
 
@@ -89,15 +102,21 @@ class LeastSamplingASM():
         fxmax = Lfx / 2 + abs(offx)
         fymax = Lfy / 2 + abs(offy)
 
-        # if frequencies exceed this range, some information is lost because of evanescent wave
-        # fxmax, fymax < 1 / wavelength
-        thetax_max = torch.asin(1 - wavelength * Lfx / 2) / math.pi * 180
-        thetay_max = torch.asin(1 - wavelength * Lfy / 2) / math.pi * 180
-        print(f'The oblique angle should not exceed ({thetax_max:.1f}, {thetay_max:.1f}) degrees.')
-
         # drop the evanescent wave
         fxmax = torch.clamp(fxmax, -1 / wavelength, 1 / wavelength)  
         fymax = torch.clamp(fymax, -1 / wavelength, 1 / wavelength)
+        if any(1 - (wavelength * fxmax)**2 - (wavelength * fymax) ** 2 <= 0):
+            # if frequencies exceed this range, some information is lost because of evanescent wave
+            # fxmax, fymax < 1 / wavelength
+            # thetax_max = torch.asin(1 - wavelength * Lfx / 2) / math.pi * 180
+            # thetay_max = torch.asin(1 - wavelength * Lfy / 2) / math.pi * 180
+            # print(f'The oblique angle should not exceed ({thetax_max:.1f}, {thetay_max:.1f}) degrees.')
+            eps = 1e-9
+            beta = torch.atan2(fymax, fxmax)
+            fxmax = torch.clamp(fxmax, max = torch.cos(beta) / ((wavelength + eps)))  
+            fymax = torch.clamp(fymax, max = torch.sin(beta) / ((wavelength + eps)))
+            Lfx = (fxmax - abs(offx)) * 2
+            Lfy = (fymax - abs(offy)) * 2
 
         # combined phase gradient analysis
         gx1, gy1 = self.grad_H(wavelength, z, Lfx / 2 + offx, Lfy / 2 + offy)

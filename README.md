@@ -12,7 +12,7 @@ Correspondance: [Dr. Peng](https://www.eee.hku.hk/~evanpeng/) and [Prof. Lam](ht
 This repository contains implementations of LS-ASM and Rayleigh-Sommerfeld algorithms, with spherical wave input and thin lens and diffuser modulations.
 
 ### Prerequisites
-Create environment from yml file:
+Create a conda environment from yml file:
 ```
 conda env create -f environment.yml
 ```

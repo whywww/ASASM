@@ -1,3 +1,22 @@
+"""
+This is the implementation of the Rayleigh-Sommerfeld algorithm. Refer to Goodman, Joseph W. 
+Introduction to Fourier optics. Roberts and Company Publishers, 2005, for principle details.
+This code is adapted from a Matlab script from Xin Liu and converted into a GPU parallel
+-computing Python script by Haoyu Wei (haoyu.wei97@gmail.com).
+
+
+This code and data is released under the Creative Commons Attribution-NonCommercial 4.0 International license (CC BY-NC.) In a nutshell:
+    # The license is only for non-commercial use (commercial licenses can be obtained from authors).
+    # The material is provided as-is, with no warranties whatsoever.
+    # If you publish any code, data, or scientific work based on this, please cite our work.
+
+    
+Technical Paper:
+Haoyu Wei, Xin Liu, Xiang Hao, Edmund Y. Lam, and Yifan Peng, "Modeling off-axis 
+diffraction with the least-sampling angular spectrum method," Optica 10, 959-962 (2023)
+"""
+
+
 import torch
 import math
 from tqdm import tqdm

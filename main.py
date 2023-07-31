@@ -1,6 +1,29 @@
-'''
-python -m debugpy --listen 0.0.0.0:5678 --wait-for-client main.py
-'''
+"""
+LS-ASM:
+
+This is the main executive script used for the diffraction field calculation using LS-ASM.
+
+This code and data is released under the Creative Commons Attribution-NonCommercial 4.0 International license (CC BY-NC.) In a nutshell:
+    # The license is only for non-commercial use (commercial licenses can be obtained from authors).
+    # The material is provided as-is, with no warranties whatsoever.
+    # If you publish any code, data, or scientific work based on this, please cite our work.
+
+@article{Wei:23,
+title       = {Modeling Off-Axis Diffraction with the Least-Sampling Angular Spectrum Method},
+author      = {Haoyu Wei and Xin Liu and Xiang Hao and Edmund Y. Lam and Yifan Peng},
+journal     = {Optica},
+volume      = {10}, number = {7}, pages = {959--962},
+publisher   = {Optica Publishing Group},
+year        = {2023}, 
+month       = {Jul}, 
+doi         = {10.1364/OPTICA.490223}
+}
+
+-----
+
+$ python main.py
+"""
+
 
 import numpy as np
 import time
