@@ -3,7 +3,7 @@ This repository provides the official open-source code of the following paper:
 
 **Modeling off-axis diffraction with least-sampling angular spectrum method**\
 Haoyu Wei*, Xin Liu*, Xiang Hao, Edmund Y. Lam, Yifan Peng\
-Paper: https://doi.org/10.1364/OPTICA.490223 \
+[<ins>Paper</ins>](https://doi.org/10.1364/OPTICA.490223), [<ins>Project page</ins>](https://whywww.github.io/LSASM_page/) \
 Correspondence: [Dr. Peng](https://www.eee.hku.hk/~evanpeng/) and [Prof. Lam](https://www.eee.hku.hk/~elam/). For implementation and experiment details please contact Haoyu (haoyu.wei97@gmail.com).
 
 <img src="documents/principles.png" alt="principle" width="300"/>
