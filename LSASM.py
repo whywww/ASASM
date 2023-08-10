@@ -105,7 +105,7 @@ class LeastSamplingASM():
         # drop the evanescent wave
         fxmax = torch.clamp(fxmax, -1 / wavelength, 1 / wavelength)  
         fymax = torch.clamp(fymax, -1 / wavelength, 1 / wavelength)
-        if any(1 - (wavelength * fxmax)**2 - (wavelength * fymax) ** 2 <= 0):
+        if 1 - (wavelength * fxmax)**2 - (wavelength * fymax) ** 2 <= 0:
             # if frequencies exceed this range, some information is lost because of evanescent wave
             # fxmax, fymax < 1 / wavelength
             # thetax_max = torch.asin(1 - wavelength * Lfx / 2) / math.pi * 180
