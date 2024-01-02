@@ -41,7 +41,8 @@ z0 = 1.7  # source-aperture distance
 zf = 1/(1/f - 1/z0)  # image-side focal distance
 z = zf  # aperture-sensor distance
 r = f / 16 / 2  # radius of aperture
-thetaX = thetaY = 0  # incident angle in degree
+thetaX = 0  # incident angle in degree
+thetaY = 5  # incident angle in degree
 
 s_LSASM = 1.5  # oversampling factor for LSASM
 s_RS = 4  # oversampling factor for Rayleigh-Sommerfeld
@@ -58,7 +59,7 @@ l = r * 0.25
 # l = 0.0136/1.5  # first term in Eq6 scaled by 1/1.5 to estimate OW size, used for diffuser
 # l = r * 8.  # 35 degrees
 xc = - z * np.sin(thetaX / 180 * np.pi) / np.sqrt(1 - np.sin(thetaX / 180 * np.pi)**2 - np.sin(thetaY / 180 * np.pi)**2)
-yc = - z * np.sin(thetaX / 180 * np.pi) / np.sqrt(1 - np.sin(thetaX / 180 * np.pi)**2 - np.sin(thetaY / 180 * np.pi)**2)
+yc = - z * np.sin(thetaY / 180 * np.pi) / np.sqrt(1 - np.sin(thetaX / 180 * np.pi)**2 - np.sin(thetaY / 180 * np.pi)**2)
 
 x = np.linspace(-l / 2 + xc, l / 2 + xc, Mx, endpoint=True)
 y = np.linspace(-l / 2 + yc, l / 2 + yc, My, endpoint=True)
