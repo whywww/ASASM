@@ -1,3 +1,18 @@
+# Author Contributions
+To provide essential information regarding author contributions omitted from the published letter:
+
+X.L. conceived the project, derived the main formulation, developed the methodology, and constructed the storyline;
+
+H.W and X.L. built the code;
+
+X.L. and H.W. co-authored the manuscript with valuable feedback from Y.P., E.Y.L., and X.H.;
+
+H.W. created all figures with input from X.L.;
+
+Y.P. provided project supervision.
+
+***For more insights beyond this work, you may correspond with [Dr. Xin Liu](https://liux2018.github.io) and refer to [On computational optics](https://github.com/LiuX2018/On-computational-optics).***
+
 # LS-ASM
 This repository provides the official open-source code of the following paper:
 
