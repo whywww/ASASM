@@ -1,9 +1,9 @@
 # Author Contributions
 To provide essential information regarding author contributions omitted from the published letter:
 
-X.L. conceived the project, derived the main formulation, developed the methodology, and constructed the storyline;
+H.W. and X.L. conceived the project and wrote the paper; X.L. constructed the storyline and led the formulation and methodology development with H.W.'s discussion and derivation.
 
-H.W and X.L. built the code;
+H.W. and X.L. built the code;
 
 X.L. and H.W. co-authored the manuscript with valuable feedback from Y.P., E.Y.L., and X.H.;
 
